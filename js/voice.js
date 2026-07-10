@@ -1,16 +1,13 @@
 /**
  * 陪考官语音：母语短句 + 统一音量/互斥播放
- * 特朗普 EN · 高市早苗 JA · 莫迪 EN-IN · 马克龙 FR
- * 音频为 edge-tts 合成，非真人录音
- *
- * 移动端注意：须先在用户手势里 unlock，否则 Chrome/Safari 会拦截 autoplay
+ * 移动端须在用户手势内 unlock，否则 Chrome/Safari 拦截 autoplay
  */
 (function () {
   var J = (window.JIAHAO = window.JIAHAO || {});
 
-  var VOLUME = 0.72;
+  var VOLUME = 0.75;
   var MAX_PLAY_SEC = 3.5;
-  var FADE_MS = 160;
+  var FADE_MS = 140;
 
   var audioEl = null;
   var stopTimer = null;
@@ -18,8 +15,9 @@
   var muted = false;
   var playToken = 0;
   var unlocked = false;
-  /** 串行解锁，避免 unlock 与 play 抢同一 Audio 导致被 pause */
   var unlockPromise = null;
+  var isPlaying = false;
+  var lastBlockedAt = 0;
 
   try {
     muted = localStorage.getItem("jiahao_voice_muted") === "1";
@@ -30,8 +28,10 @@
       audioEl = new Audio();
       audioEl.preload = "auto";
       audioEl.playsInline = true;
-      audioEl.setAttribute("playsinline", "true");
-      audioEl.setAttribute("webkit-playsinline", "true");
+      try {
+        audioEl.setAttribute("playsinline", "true");
+        audioEl.setAttribute("webkit-playsinline", "true");
+      } catch (e) {}
       audioEl.volume = VOLUME;
     }
     return audioEl;
@@ -59,6 +59,7 @@
 
   function hardStop() {
     clearTimers();
+    isPlaying = false;
     if (!audioEl) return;
     try {
       audioEl.pause();
@@ -72,12 +73,13 @@
   function fadeStop(done) {
     var a = audioEl;
     if (!a) {
+      isPlaying = false;
       if (done) done();
       return;
     }
     clearTimers();
     var start = a.volume;
-    var steps = 5;
+    var steps = 4;
     var i = 0;
     fadeTimer = setInterval(function () {
       i += 1;
@@ -87,6 +89,7 @@
       if (i >= steps) {
         clearInterval(fadeTimer);
         fadeTimer = null;
+        isPlaying = false;
         try {
           a.pause();
           a.currentTime = 0;
@@ -100,46 +103,56 @@
   }
 
   /**
-   * 在用户点击手势内解锁音频（静音极短播放）
-   * 单例 Promise：并发 unlock/play 只走一次，防止后到的 pause 掐掉正式 mp3
+   * 用户手势内解锁。正在播放正式音频时绝不 pause/改 src。
    */
   function unlock() {
     if (unlocked) return Promise.resolve(true);
     if (unlockPromise) return unlockPromise;
+    if (isPlaying) {
+      unlocked = true;
+      return Promise.resolve(true);
+    }
 
     var a = ensureAudio();
     var silent =
       "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
 
     unlockPromise = new Promise(function (resolve) {
-      // 若已有正式播放在进行，只标记解锁，不要改 src
-      if (a.src && a.src.indexOf("assets/audio") !== -1 && !a.paused) {
+      if (isPlaying) {
         unlocked = true;
         resolve(true);
         return;
       }
       try {
-        a.volume = 0.01;
+        a.volume = 0.001;
         a.src = silent;
       } catch (e) {}
-      var p = a.play();
+      var p;
+      try {
+        p = a.play();
+      } catch (e) {
+        unlocked = true;
+        resolve(true);
+        return;
+      }
       if (p && typeof p.then === "function") {
         p.then(function () {
           unlocked = true;
-          try {
-            a.pause();
-            a.currentTime = 0;
-          } catch (e) {}
+          if (!isPlaying) {
+            try {
+              a.pause();
+              a.currentTime = 0;
+            } catch (e) {}
+          }
           try {
             a.volume = VOLUME;
           } catch (e) {}
           resolve(true);
         }).catch(function () {
+          unlocked = true;
           try {
             a.volume = VOLUME;
           } catch (e) {}
-          // 即使失败也尝试后续 play（部分浏览器仍允许手势内二次 play）
-          unlocked = true;
           resolve(true);
         });
       } else {
@@ -149,12 +162,25 @@
         } catch (e) {}
         resolve(true);
       }
-    }).finally(function () {
-      // 保留 unlocked；清空 promise 以便失败后可再试
-      if (!unlocked) unlockPromise = null;
     });
 
     return unlockPromise;
+  }
+
+  function syncMuteUi() {
+    document.body.classList.toggle("voice-muted", muted);
+    var btn = document.getElementById("btn-voice-toggle");
+    if (btn) {
+      btn.setAttribute("aria-pressed", muted ? "true" : "false");
+      btn.title = muted ? "已静音 · 点击开启" : "语音开 · 点击静音";
+      btn.classList.toggle("is-muted", muted);
+      var lab = btn.querySelector(".voice-lab");
+      if (lab) lab.textContent = muted ? "静音" : "语音";
+    }
+    var banner = document.getElementById("voice-banner");
+    if (banner) {
+      banner.classList.toggle("hidden", !muted);
+    }
   }
 
   J.VOICE = {
@@ -167,6 +193,9 @@
     isMuted: function () {
       return muted;
     },
+    wasRecentlyBlocked: function () {
+      return Date.now() - lastBlockedAt < 8000;
+    },
     setMuted: function (v) {
       muted = !!v;
       try {
@@ -174,15 +203,7 @@
       } catch (e) {}
       if (muted) this.stop();
       else unlock();
-      document.body.classList.toggle("voice-muted", muted);
-      var btn = document.getElementById("btn-voice-toggle");
-      if (btn) {
-        btn.setAttribute("aria-pressed", muted ? "true" : "false");
-        btn.title = muted ? "已静音 · 点击开启陪考官语音" : "陪考官语音开 · 点击静音";
-        btn.classList.toggle("is-muted", muted);
-        var lab = btn.querySelector(".voice-lab");
-        if (lab) lab.textContent = muted ? "静音" : "语音";
-      }
+      syncMuteUi();
     },
     toggleMute: function () {
       this.setMuted(!muted);
@@ -208,20 +229,33 @@
       var a = ensureAudio();
       clearTimers();
 
-      function done(reason) {
-        if (finished || token !== playToken) return;
-        finished = true;
-        clearTimers();
-        a.onended = null;
-        a.onerror = null;
-        if (hooks.onEnd) hooks.onEnd({ reason: reason || "end" });
-      }
-
       var finished = false;
       var maxSec =
         typeof hooks.maxSec === "number" && hooks.maxSec > 0
           ? hooks.maxSec
           : MAX_PLAY_SEC;
+
+      function done(reason) {
+        if (finished || token !== playToken) return;
+        finished = true;
+        isPlaying = false;
+        clearTimers();
+        a.onended = null;
+        a.onerror = null;
+        if (reason === "blocked" || reason === "error") {
+          lastBlockedAt = Date.now();
+        }
+        if (hooks.onEnd) hooks.onEnd({ reason: reason || "end" });
+      }
+
+      function armCap() {
+        stopTimer = setTimeout(function () {
+          if (token !== playToken || finished) return;
+          fadeStop(function () {
+            done("cap");
+          });
+        }, maxSec * 1000);
+      }
 
       function startPlay() {
         if (token !== playToken) return;
@@ -236,22 +270,24 @@
         a.onerror = function () {
           done("error");
         };
-        var p = a.play();
+        var p;
+        try {
+          p = a.play();
+        } catch (e) {
+          done("blocked");
+          return;
+        }
         if (p && typeof p.then === "function") {
           p.then(function () {
             if (token !== playToken) return;
             unlocked = true;
+            isPlaying = true;
             if (hooks.onStart) hooks.onStart();
-            stopTimer = setTimeout(function () {
-              if (token !== playToken || finished) return;
-              fadeStop(function () {
-                done("cap");
-              });
-            }, maxSec * 1000);
+            armCap();
           }).catch(function () {
-            // 再试一次 unlock 后重播
-            unlock().then(function (ok) {
-              if (!ok || token !== playToken) {
+            // 手势内重试一次
+            unlock().then(function () {
+              if (token !== playToken) {
                 done("blocked");
                 return;
               }
@@ -260,13 +296,10 @@
               a.play()
                 .then(function () {
                   if (token !== playToken) return;
+                  unlocked = true;
+                  isPlaying = true;
                   if (hooks.onStart) hooks.onStart();
-                  stopTimer = setTimeout(function () {
-                    if (token !== playToken || finished) return;
-                    fadeStop(function () {
-                      done("cap");
-                    });
-                  }, maxSec * 1000);
+                  armCap();
                 })
                 .catch(function () {
                   done("blocked");
@@ -274,24 +307,19 @@
             });
           });
         } else {
+          isPlaying = true;
           if (hooks.onStart) hooks.onStart();
-          stopTimer = setTimeout(function () {
-            fadeStop(function () {
-              done("cap");
-            });
-          }, maxSec * 1000);
+          armCap();
         }
       }
 
-      // 先解锁再播，兼容 iOS / Chrome 策略
-      if (!unlocked) {
-        unlock().then(function () {
-          startPlay();
-        });
-      } else {
+      // 串行：先 unlock 完成再播，禁止并行 pause
+      unlock().then(function () {
+        if (token !== playToken) return;
         startPlay();
-      }
+      });
     },
+    syncUi: syncMuteUi,
   };
 
   J.VOICE_LINES = {
@@ -299,121 +327,41 @@
       lang: "en",
       langLabel: "EN",
       idle: [
-        {
-          text: "Huge question. Believe me.",
-          display: "Huge question. Believe me.",
-          audio: "assets/audio/trump_idle_0.mp3",
-        },
-        {
-          text: "Let's go. Tremendous.",
-          display: "Let's go. Tremendous.",
-          audio: "assets/audio/trump_idle_1.mp3",
-        },
+        { display: "Huge question. Believe me.", audio: "assets/audio/trump_idle_0.mp3" },
+        { display: "Let's go. Tremendous.", audio: "assets/audio/trump_idle_1.mp3" },
       ],
-      ok: [
-        {
-          text: "Beautiful! Tremendous!",
-          display: "Beautiful! Tremendous!",
-          audio: "assets/audio/trump_ok_0.mp3",
-        },
-      ],
+      ok: [{ display: "Beautiful! Tremendous!", audio: "assets/audio/trump_ok_0.mp3" }],
       bad: [
-        {
-          text: "Sad. Very sad. Next!",
-          display: "Sad. Very sad. Next!",
-          audio: "assets/audio/trump_bad_0.mp3",
-        },
-        {
-          text: "Wrong. So wrong. Next!",
-          display: "Wrong. So wrong. Next!",
-          audio: "assets/audio/trump_bad_1.mp3",
-        },
+        { display: "Sad. Very sad. Next!", audio: "assets/audio/trump_bad_0.mp3" },
+        { display: "Wrong. So wrong. Next!", audio: "assets/audio/trump_bad_1.mp3" },
       ],
     },
     takaichi: {
       lang: "ja",
       langLabel: "JA",
       idle: [
-        {
-          text: "問題をよく読んでください。",
-          display: "問題をよく読んでください。",
-          audio: "assets/audio/takaichi_idle_0.mp3",
-        },
-        {
-          text: "落ち着いて考えましょう。",
-          display: "落ち着いて考えましょう。",
-          audio: "assets/audio/takaichi_idle_1.mp3",
-        },
+        { display: "問題をよく読んでください。", audio: "assets/audio/takaichi_idle_0.mp3" },
+        { display: "落ち着いて考えましょう。", audio: "assets/audio/takaichi_idle_1.mp3" },
       ],
-      ok: [
-        {
-          text: "正確です。よくできました。",
-          display: "正確です。よくできました。",
-          audio: "assets/audio/takaichi_ok_0.mp3",
-        },
-      ],
+      ok: [{ display: "正確です。よくできました。", audio: "assets/audio/takaichi_ok_0.mp3" }],
       bad: [
-        {
-          text: "違います。見直しを。",
-          display: "違います。見直しを。",
-          audio: "assets/audio/takaichi_bad_0.mp3",
-        },
-        {
-          text: "残念です。次へ。",
-          display: "残念です。次へ。",
-          audio: "assets/audio/takaichi_bad_1.mp3",
-        },
+        { display: "違います。見直しを。", audio: "assets/audio/takaichi_bad_0.mp3" },
+        { display: "残念です。次へ。", audio: "assets/audio/takaichi_bad_1.mp3" },
       ],
     },
     modi: {
       lang: "en-IN",
       langLabel: "EN-IN",
-      idle: [
-        {
-          text: "Clarity first. Think carefully.",
-          display: "Clarity first. Think carefully.",
-          audio: "assets/audio/modi_idle_0.mp3",
-        },
-      ],
-      ok: [
-        {
-          text: "Very good. Discipline wins.",
-          display: "Very good. Discipline wins.",
-          audio: "assets/audio/modi_ok_0.mp3",
-        },
-      ],
-      bad: [
-        {
-          text: "Reflect, then move forward.",
-          display: "Reflect, then move forward.",
-          audio: "assets/audio/modi_bad_0.mp3",
-        },
-      ],
+      idle: [{ display: "Clarity first. Think carefully.", audio: "assets/audio/modi_idle_0.mp3" }],
+      ok: [{ display: "Very good. Discipline wins.", audio: "assets/audio/modi_ok_0.mp3" }],
+      bad: [{ display: "Reflect, then move forward.", audio: "assets/audio/modi_bad_0.mp3" }],
     },
     macron: {
       lang: "fr",
       langLabel: "FR",
-      idle: [
-        {
-          text: "Soyez précis. La rigueur d'abord.",
-          display: "Soyez précis. La rigueur d'abord.",
-          audio: "assets/audio/macron_idle_0.mp3",
-        },
-      ],
-      ok: [
-        {
-          text: "Exact. C'est élégant.",
-          display: "Exact. C'est élégant.",
-          audio: "assets/audio/macron_ok_0.mp3",
-        },
-      ],
-      bad: [
-        {
-          text: "Pas assez précis. Regardez.",
-          display: "Pas assez précis. Regardez.",
-          audio: "assets/audio/macron_bad_0.mp3",
-        },
-      ],
+      idle: [{ display: "Soyez précis. La rigueur d'abord.", audio: "assets/audio/macron_idle_0.mp3" }],
+      ok: [{ display: "Exact. C'est élégant.", audio: "assets/audio/macron_ok_0.mp3" }],
+      bad: [{ display: "Pas assez précis. Regardez.", audio: "assets/audio/macron_bad_0.mp3" }],
     },
   };
 
@@ -430,4 +378,11 @@
       lang: pack.lang || "",
     };
   };
+
+  // DOM 就绪后同步静音 UI
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", syncMuteUi);
+  } else {
+    setTimeout(syncMuteUi, 0);
+  }
 })();

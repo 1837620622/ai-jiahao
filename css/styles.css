@@ -1196,6 +1196,7 @@ html.anim .reveal[data-d="4"] {
   font-family: var(--mono);
 }
 .option.selected {
+  position: relative;
   border-color: var(--accent);
   background: #fffaf7;
   box-shadow: 0 0 0 2px var(--accent-soft);
@@ -1211,6 +1212,74 @@ html.anim .reveal[data-d="4"] {
 /* 判分后仍可点击进入下一题（不用 disabled，避免吞触摸） */
 .option.locked {
   cursor: pointer;
+}
+
+/* 静音条 */
+.voice-banner {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(217, 119, 87, 0.28);
+  color: var(--accent-deep);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.voice-banner.hidden {
+  display: none !important;
+}
+
+/* 手机底部确认条吸底 */
+.quiz-foot.is-sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 8;
+  margin-top: 12px;
+  padding: 10px 0 8px;
+  background: linear-gradient(180deg, transparent, var(--surface) 28%);
+}
+.btn-next-main {
+  min-width: 148px;
+  min-height: 46px;
+  font-size: 15px;
+}
+.btn-primary.is-pulse {
+  animation: btn-pulse 1.1s ease-in-out infinite;
+}
+@keyframes btn-pulse {
+  0%,
+  100% {
+    box-shadow: 0 1px 2px rgba(196, 101, 69, 0.18), 0 6px 16px rgba(196, 101, 69, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(217, 119, 87, 0.22), 0 8px 20px rgba(196, 101, 69, 0.28);
+  }
+}
+
+/* 全局轻提示 */
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%) translateY(12px);
+  z-index: 200;
+  max-width: min(92vw, 360px);
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(44, 42, 38, 0.92);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+}
+.app-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .explain {

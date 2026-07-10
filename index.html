@@ -6,9 +6,8 @@
     <meta name="description" content="谁是 AI 大嘉豪？四段位 AI 能力测评，测完签发嘉豪人格报告。" />
     <meta name="theme-color" content="#faf9f5" />
     <title>谁是 AI 大嘉豪？</title>
-    <link rel="stylesheet" href="css/styles.css?v=20260710e" />
-    <!-- 全量 cache bust，避免 Chrome 强缓存旧 app/voice 逻辑 -->
-    <link rel="preload" href="js/app.js?v=20260710e" as="script" />
+    <link rel="stylesheet" href="css/styles.css?v=20260710f" />
+    <link rel="preload" href="js/app.js?v=20260710f" as="script" />
     <!-- favicon：暖橙圆角 + 白星（无黑底） -->
     <link
       rel="icon"
@@ -386,6 +385,9 @@
             </button>
             <button type="button" class="btn btn-ghost btn-sm" id="btn-abort">退出</button>
           </div>
+          <div id="voice-banner" class="voice-banner hidden" role="status">
+            语音已静音 · 点击顶栏「静音」可重新开启陪考官点评
+          </div>
           <div
             class="progress"
             role="progressbar"
@@ -403,10 +405,10 @@
             <div class="react-stamp" id="react-stamp">嘉豪</div>
             <div class="q-topic" id="q-topic">LLM</div>
             <h2 class="q-text" id="q-text">题目加载中…</h2>
-            <p class="answer-hint" id="answer-hint">单击选中 · 双击确认并进入下一题</p>
+            <p class="answer-hint" id="answer-hint">点选答案 → 再点一次确认，或点底部橙色按钮</p>
             <div class="options" id="options"></div>
             <div class="explain hidden" id="explain" aria-live="polite"></div>
-            <div class="quiz-foot">
+            <div class="quiz-foot is-sticky">
               <div class="coach">
                 <img id="coach-avatar" src="assets/trump.jpg" alt="当前轮值陪考官" />
                 <div class="coach-text">
@@ -414,7 +416,7 @@
                   <span id="coach-quote">准备好了吗？</span>
                 </div>
               </div>
-              <button type="button" class="btn btn-primary" id="btn-next" disabled>确认并下一题</button>
+              <button type="button" class="btn btn-primary btn-next-main" id="btn-next" disabled>确认并下一题</button>
             </div>
           </div>
         </div>
@@ -454,11 +456,11 @@
       </div>
     </section>
 
-    <!-- defer + 版本戳：不阻塞解析，且发版后不吃旧缓存 -->
-    <script defer src="js/questions.js?v=20260710e"></script>
-    <script defer src="js/questions-extra.js?v=20260710e"></script>
-    <script defer src="js/personas.js?v=20260710e"></script>
-    <script defer src="js/voice.js?v=20260710e"></script>
-    <script defer src="js/app.js?v=20260710e"></script>
+    <!-- defer + 版本戳：不阻塞解析，发版强制刷新 -->
+    <script defer src="js/questions.js?v=20260710f"></script>
+    <script defer src="js/questions-extra.js?v=20260710f"></script>
+    <script defer src="js/personas.js?v=20260710f"></script>
+    <script defer src="js/voice.js?v=20260710f"></script>
+    <script defer src="js/app.js?v=20260710f"></script>
   </body>
 </html>

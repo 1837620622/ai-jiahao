@@ -282,9 +282,24 @@
   function unlockVoice() {
     if (JIAHAO.VOICE && JIAHAO.VOICE.unlock) {
       try {
-        JIAHAO.VOICE.unlock();
+        return JIAHAO.VOICE.unlock();
       } catch (_) {}
     }
+    return Promise.resolve(false);
+  }
+
+  function showToast(msg, ms) {
+    let el = $("#app-toast");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "app-toast";
+      el.className = "app-toast";
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => el.classList.remove("show"), ms || 2200);
   }
 
   function startQuiz() {
@@ -401,12 +416,14 @@
     const hint = $("#answer-hint");
     if (hint) {
       hint.classList.remove("hidden");
-      hint.textContent =
-        "点选选项 · 再点同一选项确认（手机友好）· 或点右下「确认」· 判分后可再点跳过语音进下一题";
+      hint.textContent = "点选答案 → 再点一次同一选项确认，或点底部橙色按钮";
     }
     $("#btn-next").disabled = true;
     $("#btn-next").textContent =
       idx === total ? "确认并结算" : "确认并下一题";
+    // 手机底部确认条常显
+    const foot = $(".quiz-foot");
+    if (foot) foot.classList.add("is-sticky");
 
     // 底部小条 + 入场只更新 idle 文案，不自动播
     $("#coach-avatar").src = c.img;
@@ -500,10 +517,11 @@
     const total = state.pack.paper.length;
     const idx = state.cursor + 1;
     $("#btn-next").textContent =
-      idx === total ? "确认并结算" : "确认并下一题";
+      idx === total ? "确认并结算" : "再点一次确认 →";
+    $("#btn-next").classList.add("is-pulse");
     const hint = $("#answer-hint");
     if (hint) {
-      hint.textContent = `已选 ${"ABCD"[choice]} · 再点一次该选项确认，或点右下按钮`;
+      hint.textContent = `已选 ${"ABCD"[choice]} · 再点一次该选项，或点底部「再点一次确认」`;
     }
   }
 
@@ -572,8 +590,7 @@
     $("#btn-next").disabled = false;
     const total = state.pack.paper.length;
     const idx = state.cursor + 1;
-    $("#btn-next").textContent =
-      idx === total ? "查看嘉豪人格" : "下一题 →";
+    // 文案在 playFeedback 前先设好
     const pct1 = Math.round(((state.cursor + 1) / total) * 100);
     $("#progress-bar").style.width = `${pct1}%`;
     const pwrap = $("#progress-wrap");
@@ -584,8 +601,7 @@
 
     updateLiveScore();
 
-    // ── 答完必播：ok / bad（在用户手势内解锁后播放） ──
-    unlockVoice();
+    // ── 答完必播：先串行 unlock 再 play（避免竞态掐声） ──
     const postGap = correct ? POST_VOICE_OK_MS : POST_VOICE_BAD_MS;
     const isMuted = JIAHAO.VOICE && JIAHAO.VOICE.isMuted();
 
@@ -593,22 +609,36 @@
       scheduleAutoNextAfter(MAX_REVEAL_MS, true);
     }
 
-    speakCompanion(
-      c,
-      correct ? "ok" : "bad",
-      [$("#coach-stage-bubble"), $("#coach-quote")],
-      {
-        play: true,
-        onEnd: (info) => {
-          if (!autoNext) return;
-          // 被拦截 / 静音 / 失败 → 用静音节奏尽快切题
-          const blocked =
-            isMuted ||
-            (info && (info.reason === "blocked" || info.reason === "error"));
-          scheduleAutoNextAfter(blocked ? AUTO_NEXT_MUTED_MS : postGap);
-        },
-      }
-    );
+    $("#btn-next").classList.remove("is-pulse");
+    $("#btn-next").textContent =
+      idx === total ? "查看嘉豪人格" : "下一题 →";
+
+    const playFeedback = () => {
+      speakCompanion(
+        c,
+        correct ? "ok" : "bad",
+        [$("#coach-stage-bubble"), $("#coach-quote")],
+        {
+          play: true,
+          onEnd: (info) => {
+            if (!autoNext) return;
+            const reason = info && info.reason;
+            const blocked =
+              isMuted || reason === "blocked" || reason === "error" || reason === "muted";
+            if (reason === "blocked" && JIAHAO.VOICE && !JIAHAO.VOICE.isMuted()) {
+              showToast("浏览器拦截了自动播放 · 点喇叭可重试，或点下一题继续");
+            }
+            scheduleAutoNextAfter(blocked ? AUTO_NEXT_MUTED_MS : postGap);
+          },
+        }
+      );
+    };
+
+    if (isMuted) {
+      playFeedback(); // voice.js 会立刻 onEnd
+    } else {
+      Promise.resolve(unlockVoice()).then(playFeedback);
+    }
   }
 
   /**
@@ -854,11 +884,29 @@
   }
 
   function init() {
+    // 题库脚本未加载完成时的兜底
+    if (!window.JIAHAO || !JIAHAO.QUESTIONS || !JIAHAO.buildPaper) {
+      showToast("题库加载中…请稍候刷新", 4000);
+      setTimeout(() => {
+        if (!window.JIAHAO || !JIAHAO.buildPaper) {
+          showToast("资源加载失败，请强制刷新（Cmd/Ctrl+Shift+R）", 5000);
+        } else {
+          boot();
+        }
+      }, 1200);
+      initReveal();
+      return;
+    }
+    boot();
+  }
+
+  function boot() {
     renderCompanions();
     renderSetup();
     bindSetup();
     bindGlobal();
     initReveal();
+    if (JIAHAO.VOICE && JIAHAO.VOICE.syncUi) JIAHAO.VOICE.syncUi();
     show("home");
   }
 
