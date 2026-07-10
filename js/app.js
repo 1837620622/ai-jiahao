@@ -127,18 +127,31 @@
     return line;
   }
 
-  /** 首页 .reveal 入场：无观察器时内容会永久透明 */
+  /** 首页 .reveal 入场：先保证可见，再启用动画（防 Chrome 等 JS 时白屏） */
   function initReveal() {
     const nodes = $$(".reveal");
     if (!nodes.length) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+
+    // 超时兜底：2.5s 内未进场的全部显示
+    const forceIn = () => {
       nodes.forEach((el) => el.classList.add("is-in"));
+    };
+    const failSafe = setTimeout(forceIn, 2500);
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      forceIn();
+      clearTimeout(failSafe);
       return;
     }
     if (!("IntersectionObserver" in window)) {
-      nodes.forEach((el) => el.classList.add("is-in"));
+      forceIn();
+      clearTimeout(failSafe);
       return;
     }
+
+    // 内容已在文档中，再开动画类（避免加载期 opacity:0）
+    document.documentElement.classList.add("anim");
+
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((en) => {
@@ -151,7 +164,6 @@
       { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }
     );
     nodes.forEach((el) => io.observe(el));
-    // 首屏已在视口内的节点立即显示，避免空白
     requestAnimationFrame(() => {
       nodes.forEach((el) => {
         const r = el.getBoundingClientRect();
@@ -160,7 +172,24 @@
           io.unobserve(el);
         }
       });
+      // 首屏处理完后取消兜底计时（仍保留给下方区块）
+      if ($$(".reveal.is-in").length >= Math.min(4, nodes.length)) {
+        // 保留 failSafe 给更下方的块
+      }
     });
+    // 页面 load 后再扫一遍
+    window.addEventListener(
+      "load",
+      () => {
+        nodes.forEach((el) => {
+          if (!el.classList.contains("is-in")) {
+            const r = el.getBoundingClientRect();
+            if (r.top < window.innerHeight * 1.2) el.classList.add("is-in");
+          }
+        });
+      },
+      { once: true }
+    );
   }
 
   function renderCompanions() {

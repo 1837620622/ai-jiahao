@@ -98,12 +98,14 @@ img {
   html {
     scroll-behavior: auto;
   }
+  html.anim .reveal,
   .view,
   .reveal,
   .anim-pop {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+    transition: none !important;
   }
 }
 
@@ -744,26 +746,31 @@ img {
   }
 }
 
-/* reveal（轻量，非满屏 fade-up 模板） */
+/* reveal：默认始终可见，避免 JS/大题库未加载时 Chrome 整页空白
+   仅在 app 就绪后加 html.anim 才做入场动画 */
 .reveal {
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
-}
-.reveal.is-in {
   opacity: 1;
   transform: none;
 }
-.reveal[data-d="1"] {
+html.anim .reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.45s var(--ease), transform 0.45s var(--ease);
+}
+html.anim .reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+html.anim .reveal[data-d="1"] {
   transition-delay: 0.05s;
 }
-.reveal[data-d="2"] {
+html.anim .reveal[data-d="2"] {
   transition-delay: 0.1s;
 }
-.reveal[data-d="3"] {
+html.anim .reveal[data-d="3"] {
   transition-delay: 0.15s;
 }
-.reveal[data-d="4"] {
+html.anim .reveal[data-d="4"] {
   transition-delay: 0.2s;
 }
 
