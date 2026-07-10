@@ -3,26 +3,21 @@
  * 特朗普 EN · 高市早苗 JA · 莫迪 EN-IN · 马克龙 FR
  * 音频为 edge-tts 合成，非真人录音
  *
- * 时序约定（答题后）：
- * - 确认答案后自动播 ok/bad
- * - 单条最长约 3.5s（到点淡出停），避免拖慢下一题
- * - 播完后由 app 再等短缓冲再切题
+ * 移动端注意：须先在用户手势里 unlock，否则 Chrome/Safari 会拦截 autoplay
  */
 (function () {
   var J = (window.JIAHAO = window.JIAHAO || {});
 
-  /** 统一音量（0–1） */
-  var VOLUME = 0.68;
-  /** 答题反馈语音硬上限（秒） */
+  var VOLUME = 0.72;
   var MAX_PLAY_SEC = 3.5;
-  /** 淡出时长（毫秒） */
-  var FADE_MS = 180;
+  var FADE_MS = 160;
 
   var audioEl = null;
   var stopTimer = null;
   var fadeTimer = null;
   var muted = false;
   var playToken = 0;
+  var unlocked = false;
 
   try {
     muted = localStorage.getItem("jiahao_voice_muted") === "1";
@@ -32,9 +27,21 @@
     if (!audioEl) {
       audioEl = new Audio();
       audioEl.preload = "auto";
+      audioEl.playsInline = true;
+      audioEl.setAttribute("playsinline", "true");
+      audioEl.setAttribute("webkit-playsinline", "true");
       audioEl.volume = VOLUME;
     }
     return audioEl;
+  }
+
+  function absUrl(url) {
+    if (!url) return url;
+    try {
+      return new URL(url, window.location.href).href;
+    } catch (e) {
+      return url;
+    }
   }
 
   function clearTimers() {
@@ -54,15 +61,12 @@
     try {
       audioEl.pause();
       audioEl.currentTime = 0;
-      audioEl.removeAttribute("src");
-      audioEl.load();
     } catch (e) {}
     try {
       audioEl.volume = VOLUME;
     } catch (e) {}
   }
 
-  /** 到点前短淡出再停 */
   function fadeStop(done) {
     var a = audioEl;
     if (!a) {
@@ -71,7 +75,7 @@
     }
     clearTimers();
     var start = a.volume;
-    var steps = 6;
+    var steps = 5;
     var i = 0;
     fadeTimer = setInterval(function () {
       i += 1;
@@ -93,9 +97,49 @@
     }, Math.max(16, Math.floor(FADE_MS / steps)));
   }
 
+  /**
+   * 在用户点击手势内解锁音频（静音极短播放）
+   * 开考 / 点选项 / 点喇叭时调用
+   */
+  function unlock() {
+    if (unlocked) return Promise.resolve(true);
+    var a = ensureAudio();
+    // 1 帧近乎无声的 wav，用于解锁 autoplay
+    var silent =
+      "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
+    a.volume = 0.01;
+    try {
+      a.src = silent;
+    } catch (e) {}
+    var p = a.play();
+    if (p && typeof p.then === "function") {
+      return p
+        .then(function () {
+          unlocked = true;
+          try {
+            a.pause();
+            a.currentTime = 0;
+          } catch (e) {}
+          a.volume = VOLUME;
+          return true;
+        })
+        .catch(function () {
+          a.volume = VOLUME;
+          return false;
+        });
+    }
+    unlocked = true;
+    a.volume = VOLUME;
+    return Promise.resolve(true);
+  }
+
   J.VOICE = {
     VOLUME: VOLUME,
     MAX_PLAY_SEC: MAX_PLAY_SEC,
+    isUnlocked: function () {
+      return unlocked;
+    },
+    unlock: unlock,
     isMuted: function () {
       return muted;
     },
@@ -105,6 +149,7 @@
         localStorage.setItem("jiahao_voice_muted", muted ? "1" : "0");
       } catch (e) {}
       if (muted) this.stop();
+      else unlock();
       document.body.classList.toggle("voice-muted", muted);
       var btn = document.getElementById("btn-voice-toggle");
       if (btn) {
@@ -124,7 +169,6 @@
       hardStop();
     },
     /**
-     * 播放一条短句
      * @param {string} url
      * @param {{onStart?:Function,onEnd?:Function,maxSec?:number}} hooks
      */
@@ -135,19 +179,10 @@
         if (hooks.onEnd) hooks.onEnd({ reason: muted ? "muted" : "empty" });
         return;
       }
+
+      var full = absUrl(url);
       var a = ensureAudio();
       clearTimers();
-      try {
-        a.pause();
-      } catch (e) {}
-      a.volume = VOLUME;
-      a.src = url;
-
-      var finished = false;
-      var maxSec =
-        typeof hooks.maxSec === "number" && hooks.maxSec > 0
-          ? hooks.maxSec
-          : MAX_PLAY_SEC;
 
       function done(reason) {
         if (finished || token !== playToken) return;
@@ -158,43 +193,83 @@
         if (hooks.onEnd) hooks.onEnd({ reason: reason || "end" });
       }
 
-      a.onended = function () {
-        done("ended");
-      };
-      a.onerror = function () {
-        done("error");
-      };
+      var finished = false;
+      var maxSec =
+        typeof hooks.maxSec === "number" && hooks.maxSec > 0
+          ? hooks.maxSec
+          : MAX_PLAY_SEC;
 
-      var p = a.play();
-      if (p && typeof p.then === "function") {
-        p.then(function () {
-          if (token !== playToken) return;
+      function startPlay() {
+        if (token !== playToken) return;
+        try {
+          a.pause();
+        } catch (e) {}
+        a.volume = VOLUME;
+        a.src = full;
+        a.onended = function () {
+          done("ended");
+        };
+        a.onerror = function () {
+          done("error");
+        };
+        var p = a.play();
+        if (p && typeof p.then === "function") {
+          p.then(function () {
+            if (token !== playToken) return;
+            unlocked = true;
+            if (hooks.onStart) hooks.onStart();
+            stopTimer = setTimeout(function () {
+              if (token !== playToken || finished) return;
+              fadeStop(function () {
+                done("cap");
+              });
+            }, maxSec * 1000);
+          }).catch(function () {
+            // 再试一次 unlock 后重播
+            unlock().then(function (ok) {
+              if (!ok || token !== playToken) {
+                done("blocked");
+                return;
+              }
+              a.volume = VOLUME;
+              a.src = full;
+              a.play()
+                .then(function () {
+                  if (token !== playToken) return;
+                  if (hooks.onStart) hooks.onStart();
+                  stopTimer = setTimeout(function () {
+                    if (token !== playToken || finished) return;
+                    fadeStop(function () {
+                      done("cap");
+                    });
+                  }, maxSec * 1000);
+                })
+                .catch(function () {
+                  done("blocked");
+                });
+            });
+          });
+        } else {
           if (hooks.onStart) hooks.onStart();
-          // 硬上限：到点淡出，保证不拖慢答题节奏
           stopTimer = setTimeout(function () {
-            if (token !== playToken || finished) return;
             fadeStop(function () {
               done("cap");
             });
           }, maxSec * 1000);
-        }).catch(function () {
-          done("blocked");
+        }
+      }
+
+      // 先解锁再播，兼容 iOS / Chrome 策略
+      if (!unlocked) {
+        unlock().then(function () {
+          startPlay();
         });
       } else {
-        if (hooks.onStart) hooks.onStart();
-        stopTimer = setTimeout(function () {
-          fadeStop(function () {
-            done("cap");
-          });
-        }, maxSec * 1000);
+        startPlay();
       }
     },
   };
 
-  /**
-   * 台词：母语展示 + 音频
-   * lang: en | ja | en-IN | fr
-   */
   J.VOICE_LINES = {
     trump: {
       lang: "en",
@@ -318,7 +393,6 @@
     },
   };
 
-  /** 取一条台词 {display, audio, langLabel, lang} */
   J.pickVoiceLine = function (companionId, kind) {
     var pack = J.VOICE_LINES && J.VOICE_LINES[companionId];
     if (!pack) return null;

@@ -18,19 +18,22 @@
     revealed: false,
     phase: "core",
     autoTimer: null, // 答完语音后自动下一题
-    lastTap: null, // 移动端二次点同一选项确认
+    lastTap: null, // 最近点中的选项 index
+    lastTapAt: 0, // 时间戳，用于移动端二次点击确认
     revealAt: 0, // 本题确认时刻，用于最短展示
   };
 
-  /** 静音 / 无音频时的自动下一题延迟 */
-  const AUTO_NEXT_MUTED_MS = 900;
+  /** 静音 / 无音频 / 播失败时的自动下一题延迟 */
+  const AUTO_NEXT_MUTED_MS = 750;
   /** 语音播完后，答对/答错再多等一小段再切题（读解析） */
-  const POST_VOICE_OK_MS = 320;
-  const POST_VOICE_BAD_MS = 480;
+  const POST_VOICE_OK_MS = 280;
+  const POST_VOICE_BAD_MS = 400;
   /** 确认后最短停留（即使语音极短或失败） */
-  const MIN_REVEAL_MS = 850;
+  const MIN_REVEAL_MS = 700;
   /** 确认后最长等待（防卡死；含语音上限） */
-  const MAX_REVEAL_MS = 4200;
+  const MAX_REVEAL_MS = 3800;
+  /** 移动端：再点同一选项确认的有效时间窗 */
+  const TAP_CONFIRM_MS = 900;
 
   const views = {
     home: $("#view-home"),
@@ -114,15 +117,15 @@
           const stage = $("#coach-stage");
           if (stage) stage.classList.add("is-speaking");
         },
-        onEnd: () => {
+        onEnd: (info) => {
           document.body.classList.remove("is-speaking");
           const stage = $("#coach-stage");
           if (stage) stage.classList.remove("is-speaking");
-          if (onEnd) onEnd();
+          if (onEnd) onEnd(info);
         },
       });
     } else if (onEnd) {
-      onEnd();
+      onEnd({ reason: "skip" });
     }
     return line;
   }
@@ -284,8 +287,18 @@
     }
   }
 
+  function unlockVoice() {
+    if (JIAHAO.VOICE && JIAHAO.VOICE.unlock) {
+      try {
+        JIAHAO.VOICE.unlock();
+      } catch (_) {}
+    }
+  }
+
   function startQuiz() {
     clearAutoTimer();
+    // 用户点击开考 → 立刻解锁音频（移动端必须）
+    unlockVoice();
     // 每次开局重新 buildPaper → 刷新题库抽取 + 选项乱序
     state.pack = JIAHAO.buildPaper(state.tierId);
     if (!state.pack.paper.length) {
@@ -361,7 +374,10 @@
       const speakBtn = $("#btn-speak");
       if (speakBtn) {
         speakBtn.addEventListener("click", () => {
-          speakCompanion(c, "idle", [$("#coach-stage-bubble"), $("#coach-quote")]);
+          unlockVoice();
+          speakCompanion(c, "idle", [$("#coach-stage-bubble"), $("#coach-quote")], {
+            play: true,
+          });
         });
       }
     }
@@ -385,6 +401,7 @@
     state.selected = null;
     state.revealed = false;
     state.lastTap = null;
+    state.lastTapAt = 0;
     state.revealAt = 0;
 
     $("#explain").classList.add("hidden");
@@ -393,13 +410,13 @@
     if (hint) {
       hint.classList.remove("hidden");
       hint.textContent =
-        "单击选中 · 再点一次同一选项确认（手机）· 桌面可双击 · 也可点右侧按钮";
+        "点选选项 · 再点同一选项确认（手机友好）· 或点右下「确认」· 判分后可再点跳过语音进下一题";
     }
     $("#btn-next").disabled = true;
     $("#btn-next").textContent =
       idx === total ? "确认并结算" : "确认并下一题";
 
-    // 底部小条 + 入场只更新 idle 文案，不自动播（避免与答完语音抢焦点）
+    // 底部小条 + 入场只更新 idle 文案，不自动播
     $("#coach-avatar").src = c.img;
     const nameEl = $("#coach-name");
     if (nameEl) nameEl.textContent = `本场轮值：${c.title}`;
@@ -410,26 +427,50 @@
 
     updateLiveScore();
 
-    // 单击预选 / 再点同一项确认 / 桌面双击确认
+    // 选项交互：预选 / 二次确认 / 判分后点任意选项 → 下一题
     $$(".option", opts).forEach((btn) => {
       const i = Number(btn.dataset.i);
-      btn.addEventListener("click", (e) => {
+      const handleTap = (e) => {
         e.preventDefault();
-        if (state.revealed) return;
-        // 第二次点同一选项 → 确认并自动下一题（移动端友好）
-        if (state.selected === i && state.lastTap === i) {
+        e.stopPropagation();
+        unlockVoice();
+
+        // 已判分：点选项 = 跳过语音立刻下一题（手机关键）
+        if (state.revealed) {
+          goNext();
+          return;
+        }
+
+        const now = Date.now();
+        const sameAgain =
+          state.selected === i &&
+          state.lastTap === i &&
+          now - state.lastTapAt < TAP_CONFIRM_MS;
+
+        if (sameAgain || (state.selected === i && state.lastTap === i)) {
+          // 第二次点同一选项 → 确认
           confirmAnswer(i, true);
           return;
         }
+
         onSelect(i);
         state.lastTap = i;
-      });
-      btn.addEventListener("dblclick", (e) => {
-        e.preventDefault();
-        if (state.revealed) return;
-        onSelect(i);
-        confirmAnswer(i, true);
-      });
+        state.lastTapAt = now;
+      };
+
+      // click 覆盖鼠标 + 多数移动浏览器
+      btn.addEventListener("click", handleTap);
+      // 部分 Android 双击需要 pointerup 更灵敏（不重复确认：用 data 防抖）
+      btn.addEventListener(
+        "pointerup",
+        (e) => {
+          if (e.pointerType === "touch") {
+            // 交给 click 统一处理，避免双触发；仅解锁音频
+            unlockVoice();
+          }
+        },
+        { passive: true }
+      );
     });
 
     // 进入附加区提示
@@ -456,6 +497,7 @@
   /** 单击：仅预选，不高亮判分 */
   function onSelect(choice) {
     if (state.revealed) return;
+    unlockVoice();
     state.selected = choice;
     const root = $("#options");
     $$(".option", root || document).forEach((btn) => {
@@ -469,7 +511,7 @@
       idx === total ? "确认并结算" : "确认并下一题";
     const hint = $("#answer-hint");
     if (hint) {
-      hint.textContent = `已选 ${"ABCD"[choice]} · 再双击该选项，或点右侧按钮确认`;
+      hint.textContent = `已选 ${"ABCD"[choice]} · 再点一次该选项确认，或点右下按钮`;
     }
   }
 
@@ -496,9 +538,11 @@
     const c = companionForIndex(state.cursor);
 
     const root = $("#options");
+    // 不用 disabled（会吞掉点击）；改用 locked，判分后仍可点进下一题
     $$(".option", root || document).forEach((btn) => {
       const i = Number(btn.dataset.i);
-      btn.disabled = true;
+      btn.classList.add("locked");
+      btn.setAttribute("aria-disabled", "true");
       btn.classList.remove("selected");
       if (i === q.answer) btn.classList.add("correct");
       if (i === pick) {
@@ -527,9 +571,9 @@
       if (autoNext) {
         hint.textContent = muted
           ? "已确认 · 即将进入下一题…"
-          : "已确认 · 陪考官点评中，播完自动下一题…";
+          : "已确认 · 点评中，播完自动下一题（可点选项或右下按钮立即跳过）";
       } else {
-        hint.textContent = "已确认 · 可点「下一题」继续";
+        hint.textContent = "已确认 · 点「下一题」继续";
       }
     }
 
@@ -548,14 +592,12 @@
 
     updateLiveScore();
 
-    // ── 答完必播：ok / bad 母语 ──
-    // 时序：播完 → 短缓冲 → 且不少于 MIN_REVEAL_MS → 切下一题
-    // 硬上限 MAX_REVEAL_MS，防止音频异常卡住
+    // ── 答完必播：ok / bad（在用户手势内解锁后播放） ──
+    unlockVoice();
     const postGap = correct ? POST_VOICE_OK_MS : POST_VOICE_BAD_MS;
     const isMuted = JIAHAO.VOICE && JIAHAO.VOICE.isMuted();
 
     if (autoNext) {
-      // 兜底：最长等待后强制下一题
       scheduleAutoNextAfter(MAX_REVEAL_MS, true);
     }
 
@@ -565,13 +607,13 @@
       [$("#coach-stage-bubble"), $("#coach-quote")],
       {
         play: true,
-        onEnd: () => {
+        onEnd: (info) => {
           if (!autoNext) return;
-          if (isMuted) {
-            scheduleAutoNextAfter(AUTO_NEXT_MUTED_MS);
-          } else {
-            scheduleAutoNextAfter(postGap);
-          }
+          // 被拦截 / 静音 / 失败 → 用静音节奏尽快切题
+          const blocked =
+            isMuted ||
+            (info && (info.reason === "blocked" || info.reason === "error"));
+          scheduleAutoNextAfter(blocked ? AUTO_NEXT_MUTED_MS : postGap);
         },
       }
     );
@@ -611,8 +653,9 @@
     renderQuiz();
   }
 
-  /** 下一题按钮：未确认则先确认并自动下一题；已确认则立即下一题 */
+  /** 下一题按钮：未确认则先确认；已确认则立刻下一题（打断语音） */
   function nextQuestion() {
+    unlockVoice();
     if (!state.revealed) {
       if (state.selected == null) return;
       confirmAnswer(state.selected, true);
