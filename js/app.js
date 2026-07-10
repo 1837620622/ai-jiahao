@@ -14,9 +14,23 @@
     pack: null, // { core, bonus, paper, tier }
     cursor: 0,
     answers: [],
+    selected: null, // 单击预选，尚未提交
     revealed: false,
-    phase: "core", // core | bonus-gate | bonus | done
+    phase: "core",
+    autoTimer: null, // 答完语音后自动下一题
+    lastTap: null, // 移动端二次点同一选项确认
+    revealAt: 0, // 本题确认时刻，用于最短展示
   };
+
+  /** 静音 / 无音频时的自动下一题延迟 */
+  const AUTO_NEXT_MUTED_MS = 900;
+  /** 语音播完后，答对/答错再多等一小段再切题（读解析） */
+  const POST_VOICE_OK_MS = 320;
+  const POST_VOICE_BAD_MS = 480;
+  /** 确认后最短停留（即使语音极短或失败） */
+  const MIN_REVEAL_MS = 850;
+  /** 确认后最长等待（防卡死；含语音上限） */
+  const MAX_REVEAL_MS = 4200;
 
   const views = {
     home: $("#view-home"),
@@ -31,7 +45,9 @@
       if (!el) return;
       el.classList.toggle("hidden", k !== name);
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // 测评态隐藏营销顶栏，避免双 sticky 遮挡
+    document.body.classList.toggle("is-app", name !== "home");
+    window.scrollTo({ top: 0, behavior: name === "home" ? "smooth" : "auto" });
   }
 
   function tier() {
@@ -44,15 +60,107 @@
     return list[i % list.length];
   }
 
-  function pickQuote(c, kind) {
-    const bag = (JIAHAO.QUOTES && JIAHAO.QUOTES[c.id]) || JIAHAO.QUOTES.jiahao;
+  /** 台词：优先母语音频包，否则回退旧 QUOTES 文本 */
+  function pickLine(c, kind) {
+    if (JIAHAO.pickVoiceLine) {
+      const line = JIAHAO.pickVoiceLine(c.id, kind);
+      if (line) return line;
+    }
+    const bag = (JIAHAO.QUOTES && JIAHAO.QUOTES[c.id]) || (JIAHAO.QUOTES && JIAHAO.QUOTES.jiahao);
+    let text = "……";
     if (bag && !Array.isArray(bag) && bag[kind]) {
       const arr = bag[kind];
-      return arr[Math.floor(Math.random() * arr.length)];
+      text = arr[Math.floor(Math.random() * arr.length)];
+    } else if (Array.isArray(bag)) {
+      text = bag[Math.floor(Math.random() * bag.length)];
     }
-    if (Array.isArray(bag)) return bag[Math.floor(Math.random() * bag.length)];
-    const arr = bag.idle || ["……"];
-    return arr[Math.floor(Math.random() * arr.length)];
+    return { display: text, audio: null, langLabel: "" };
+  }
+
+  /**
+   * 更新台词并可选播放
+   * @param {object} c 陪考官
+   * @param {"idle"|"ok"|"bad"} kind
+   * @param {Element[]} displayEls
+   * @param {{play?:boolean,onEnd?:Function}} opts play 默认 true
+   */
+  function speakCompanion(c, kind, displayEls, opts) {
+    const options =
+      typeof opts === "function" ? { play: true, onEnd: opts } : opts || {};
+    const shouldPlay = options.play !== false;
+    const onEnd = options.onEnd;
+    const line = pickLine(c, kind);
+    (displayEls || []).forEach((el) => {
+      if (el) el.textContent = line.display;
+    });
+    const langEl = $("#coach-lang");
+    if (langEl) {
+      langEl.textContent = line.langLabel || "";
+      langEl.classList.toggle("hidden", !line.langLabel);
+    }
+    const note = $(".coach-voice-note");
+    if (note) {
+      const muted = JIAHAO.VOICE && JIAHAO.VOICE.isMuted();
+      note.textContent = muted
+        ? "已静音 · 点顶栏「语音」开启"
+        : kind === "idle"
+          ? "母语短句 · 答完后自动播"
+          : "正在播报 · 播完自动下一题";
+    }
+    if (shouldPlay && JIAHAO.VOICE && line.audio) {
+      JIAHAO.VOICE.play(line.audio, {
+        onStart: () => {
+          document.body.classList.add("is-speaking");
+          const stage = $("#coach-stage");
+          if (stage) stage.classList.add("is-speaking");
+        },
+        onEnd: () => {
+          document.body.classList.remove("is-speaking");
+          const stage = $("#coach-stage");
+          if (stage) stage.classList.remove("is-speaking");
+          if (onEnd) onEnd();
+        },
+      });
+    } else if (onEnd) {
+      onEnd();
+    }
+    return line;
+  }
+
+  /** 首页 .reveal 入场：无观察器时内容会永久透明 */
+  function initReveal() {
+    const nodes = $$(".reveal");
+    if (!nodes.length) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      nodes.forEach((el) => el.classList.add("is-in"));
+      return;
+    }
+    if (!("IntersectionObserver" in window)) {
+      nodes.forEach((el) => el.classList.add("is-in"));
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((en) => {
+          if (en.isIntersecting) {
+            en.target.classList.add("is-in");
+            io.unobserve(en.target);
+          }
+        });
+      },
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }
+    );
+    nodes.forEach((el) => io.observe(el));
+    // 首屏已在视口内的节点立即显示，避免空白
+    requestAnimationFrame(() => {
+      nodes.forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.top < window.innerHeight * 0.96 && r.bottom > 0) {
+          el.classList.add("is-in");
+          io.unobserve(el);
+        }
+      });
+    });
   }
 
   function renderCompanions() {
@@ -84,8 +192,7 @@
       ).join("");
     }
 
-    const bubble = $("#hero-bubble");
-    if (bubble && JIAHAO.BRAND) bubble.textContent = JIAHAO.BRAND.bubble;
+    // 首页 hero 气泡保留 HTML 策划文案，不覆盖为品牌口号
   }
 
   function renderSetup() {
@@ -141,8 +248,16 @@
     }
   }
 
+  function clearAutoTimer() {
+    if (state.autoTimer) {
+      clearTimeout(state.autoTimer);
+      state.autoTimer = null;
+    }
+  }
+
   function startQuiz() {
-    // 每次开局重新 buildPaper → 刷新题库抽取
+    clearAutoTimer();
+    // 每次开局重新 buildPaper → 刷新题库抽取 + 选项乱序
     state.pack = JIAHAO.buildPaper(state.tierId);
     if (!state.pack.paper.length) {
       alert("题库为空，稍后再试。");
@@ -150,6 +265,7 @@
     }
     state.cursor = 0;
     state.answers = [];
+    state.selected = null;
     state.revealed = false;
     state.phase = "core";
     show("quiz");
@@ -179,26 +295,46 @@
 
     $("#quiz-progress-label").textContent = `${idx} / ${total}`;
     $("#quiz-tier-label").textContent = `${t.name} · ${t.title}`;
-    $("#progress-bar").style.width = `${((state.cursor) / total) * 100}%`;
+    const pct0 = Math.round((state.cursor / total) * 100);
+    $("#progress-bar").style.width = `${pct0}%`;
+    const pwrap = $("#progress-wrap");
+    if (pwrap) pwrap.setAttribute("aria-valuenow", String(pct0));
 
-    // 大图陪考官舞台（SVG 角色标，无国旗/emoji）
+    // 左侧陪考官：固定布局 + 母语播放
     const stage = $("#coach-stage");
     if (stage) {
       const iconSvg =
         (JIAHAO.ICONS && JIAHAO.ICONS[c.icon]) ||
         (JIAHAO.ICONS && JIAHAO.ICONS.precision) ||
         "";
+      const muted = JIAHAO.VOICE && JIAHAO.VOICE.isMuted();
       stage.innerHTML = `
         <div class="coach-stage-card anim-pop">
-          <img src="${c.img}" alt="${c.title}" />
+          <div class="coach-stage-top">
+            <span class="coach-lang" id="coach-lang"></span>
+            <button type="button" class="btn-speak" id="btn-speak" title="播放本关台词" aria-label="播放陪考官语音">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/><path d="M18 6a8 8 0 010 12"/></svg>
+            </button>
+          </div>
+          <div class="coach-avatar-wrap">
+            <img src="${c.img}" alt="${c.title}" id="coach-stage-img" />
+            <span class="speak-ring" aria-hidden="true"></span>
+          </div>
           <div class="coach-stage-meta">
             <span class="vibe"><span class="vibe-ico">${iconSvg}</span>${c.vibe || "陪考中"}</span>
             <strong>本关陪考官</strong>
             <b>${c.title}</b>
             <p>${c.duty || c.role}</p>
           </div>
-          <div class="coach-bubble" id="coach-stage-bubble">${pickQuote(c, "idle")}</div>
+          <div class="coach-bubble" id="coach-stage-bubble">…</div>
+          <p class="coach-voice-note">母语短句 · AI 合成 · ${muted ? "已静音" : "可播放"}</p>
         </div>`;
+      const speakBtn = $("#btn-speak");
+      if (speakBtn) {
+        speakBtn.addEventListener("click", () => {
+          speakCompanion(c, "idle", [$("#coach-stage-bubble"), $("#coach-quote")]);
+        });
+      }
     }
 
     $("#q-topic").textContent = (q.isBonus ? "附加 · " : "") + (q.topic || "综合");
@@ -216,23 +352,55 @@
       )
       .join("");
 
+    clearAutoTimer();
+    state.selected = null;
+    state.revealed = false;
+    state.lastTap = null;
+    state.revealAt = 0;
+
     $("#explain").classList.add("hidden");
     $("#explain").innerHTML = "";
+    const hint = $("#answer-hint");
+    if (hint) {
+      hint.classList.remove("hidden");
+      hint.textContent =
+        "单击选中 · 再点一次同一选项确认（手机）· 桌面可双击 · 也可点右侧按钮";
+    }
     $("#btn-next").disabled = true;
     $("#btn-next").textContent =
-      idx === total ? "结算嘉豪人格" : q.isBonus ? "下一道附加 →" : "下一题 →";
+      idx === total ? "确认并结算" : "确认并下一题";
 
-    // 底部小条同步
+    // 底部小条 + 入场只更新 idle 文案，不自动播（避免与答完语音抢焦点）
     $("#coach-avatar").src = c.img;
     const nameEl = $("#coach-name");
     if (nameEl) nameEl.textContent = `本场轮值：${c.title}`;
-    $("#coach-quote").textContent = pickQuote(c, "idle");
+    if (JIAHAO.VOICE) JIAHAO.VOICE.stop();
+    speakCompanion(c, "idle", [$("#coach-stage-bubble"), $("#coach-quote")], {
+      play: false,
+    });
 
-    // 实时分预览
     updateLiveScore();
 
+    // 单击预选 / 再点同一项确认 / 桌面双击确认
     $$(".option", opts).forEach((btn) => {
-      btn.addEventListener("click", () => onPick(Number(btn.dataset.i)));
+      const i = Number(btn.dataset.i);
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (state.revealed) return;
+        // 第二次点同一选项 → 确认并自动下一题（移动端友好）
+        if (state.selected === i && state.lastTap === i) {
+          confirmAnswer(i, true);
+          return;
+        }
+        onSelect(i);
+        state.lastTap = i;
+      });
+      btn.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        if (state.revealed) return;
+        onSelect(i);
+        confirmAnswer(i, true);
+      });
     });
 
     // 进入附加区提示
@@ -256,25 +424,60 @@
     el.innerHTML = `必做 <b>${sc.coreScore}</b>/${sc.coreMax} · 附加 <b>+${sc.bonusScore}</b> · 合计 <b>${sc.totalScore}</b>`;
   }
 
-  function onPick(choice) {
+  /** 单击：仅预选，不高亮判分 */
+  function onSelect(choice) {
     if (state.revealed) return;
+    state.selected = choice;
+    const root = $("#options");
+    $$(".option", root || document).forEach((btn) => {
+      const i = Number(btn.dataset.i);
+      btn.classList.toggle("selected", i === choice);
+    });
+    $("#btn-next").disabled = false;
+    const total = state.pack.paper.length;
+    const idx = state.cursor + 1;
+    $("#btn-next").textContent =
+      idx === total ? "确认并结算" : "确认并下一题";
+    const hint = $("#answer-hint");
+    if (hint) {
+      hint.textContent = `已选 ${"ABCD"[choice]} · 再双击该选项，或点右侧按钮确认`;
+    }
+  }
+
+  /**
+   * 确认作答并展示对错
+   * 每次答完强制自动播陪考官 ok/bad；autoNext 时等语音结束再切题
+   * @param {number|null} choice 指定选项；null 则用预选
+   * @param {boolean} autoNext 是否在语音/最短展示后自动下一题
+   */
+  function confirmAnswer(choice, autoNext) {
+    if (state.revealed) {
+      if (autoNext) scheduleAutoNextAfter(POST_VOICE_OK_MS);
+      return;
+    }
+    const pick = choice != null ? choice : state.selected;
+    if (pick == null) return;
+
     const q = currentQ();
-    const correct = choice === q.answer;
+    const correct = pick === q.answer;
     state.revealed = true;
-    state.answers[state.cursor] = { choice, correct };
+    state.selected = pick;
+    state.revealAt = Date.now();
+    state.answers[state.cursor] = { choice: pick, correct };
     const c = companionForIndex(state.cursor);
 
-    $$(".option").forEach((btn) => {
+    const root = $("#options");
+    $$(".option", root || document).forEach((btn) => {
       const i = Number(btn.dataset.i);
       btn.disabled = true;
+      btn.classList.remove("selected");
       if (i === q.answer) btn.classList.add("correct");
-      if (i === choice) {
+      if (i === pick) {
         btn.classList.add("selected");
         if (!correct) btn.classList.add("wrong");
       }
     });
 
-    // 搞怪戳记
     const stamp = $("#react-stamp");
     if (stamp) {
       stamp.textContent = correct ? "嘉豪！" : "再练！";
@@ -289,28 +492,104 @@
       ? `<b>命中！+${pts} 分。</b> ${q.explain || ""}`
       : `<b>歪了。</b> 正解 ${"ABCD"[q.answer]}，本题 0 分。<br/>${q.explain || ""}`;
 
-    $("#btn-next").disabled = false;
-    $("#progress-bar").style.width = `${((state.cursor + 1) / state.pack.paper.length) * 100}%`;
+    const hint = $("#answer-hint");
+    if (hint) {
+      const muted = JIAHAO.VOICE && JIAHAO.VOICE.isMuted();
+      if (autoNext) {
+        hint.textContent = muted
+          ? "已确认 · 即将进入下一题…"
+          : "已确认 · 陪考官点评中，播完自动下一题…";
+      } else {
+        hint.textContent = "已确认 · 可点「下一题」继续";
+      }
+    }
 
-    const quote = pickQuote(c, correct ? "ok" : "bad");
-    $("#coach-quote").textContent = quote;
-    const bub = $("#coach-stage-bubble");
-    if (bub) bub.textContent = quote;
+    $("#btn-next").disabled = false;
+    const total = state.pack.paper.length;
+    const idx = state.cursor + 1;
+    $("#btn-next").textContent =
+      idx === total ? "查看嘉豪人格" : "下一题 →";
+    const pct1 = Math.round(((state.cursor + 1) / total) * 100);
+    $("#progress-bar").style.width = `${pct1}%`;
+    const pwrap = $("#progress-wrap");
+    if (pwrap) pwrap.setAttribute("aria-valuenow", String(pct1));
+
     const nameEl = $("#coach-name");
     if (nameEl) nameEl.textContent = `${c.title} · ${correct ? "认可了" : "扶额中"}`;
 
     updateLiveScore();
+
+    // ── 答完必播：ok / bad 母语 ──
+    // 时序：播完 → 短缓冲 → 且不少于 MIN_REVEAL_MS → 切下一题
+    // 硬上限 MAX_REVEAL_MS，防止音频异常卡住
+    const postGap = correct ? POST_VOICE_OK_MS : POST_VOICE_BAD_MS;
+    const isMuted = JIAHAO.VOICE && JIAHAO.VOICE.isMuted();
+
+    if (autoNext) {
+      // 兜底：最长等待后强制下一题
+      scheduleAutoNextAfter(MAX_REVEAL_MS, true);
+    }
+
+    speakCompanion(
+      c,
+      correct ? "ok" : "bad",
+      [$("#coach-stage-bubble"), $("#coach-quote")],
+      {
+        play: true,
+        onEnd: () => {
+          if (!autoNext) return;
+          if (isMuted) {
+            scheduleAutoNextAfter(AUTO_NEXT_MUTED_MS);
+          } else {
+            scheduleAutoNextAfter(postGap);
+          }
+        },
+      }
+    );
   }
 
-  function nextQuestion() {
+  /**
+   * 在 delayMs 后切下一题，并保证确认后至少展示 MIN_REVEAL_MS
+   * @param {number} delayMs 从「现在」起的额外等待
+   * @param {boolean} hard 是否无视最短展示（仅用于 MAX 兜底）
+   */
+  function scheduleAutoNextAfter(delayMs, hard) {
+    clearAutoTimer();
+    const extra = typeof delayMs === "number" ? delayMs : POST_VOICE_OK_MS;
+    let wait = extra;
+    if (!hard && state.revealAt) {
+      const elapsed = Date.now() - state.revealAt;
+      const needMin = Math.max(0, MIN_REVEAL_MS - elapsed);
+      wait = Math.max(extra, needMin);
+    }
+    state.autoTimer = setTimeout(() => {
+      state.autoTimer = null;
+      goNext();
+    }, wait);
+  }
+
+  function goNext() {
+    clearAutoTimer();
+    if (JIAHAO.VOICE) JIAHAO.VOICE.stop();
     if (!state.revealed) return;
     if (state.cursor >= state.pack.paper.length - 1) {
       finish();
       return;
     }
     state.cursor += 1;
+    state.selected = null;
     state.revealed = false;
     renderQuiz();
+  }
+
+  /** 下一题按钮：未确认则先确认并自动下一题；已确认则立即下一题 */
+  function nextQuestion() {
+    if (!state.revealed) {
+      if (state.selected == null) return;
+      confirmAnswer(state.selected, true);
+      return;
+    }
+    goNext();
   }
 
   function finish() {
@@ -416,42 +695,86 @@
     }
   }
 
+  function scrollToId(id) {
+    show("home");
+    setTimeout(() => {
+      const t = document.getElementById(id);
+      if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  }
+
   function bindGlobal() {
     $$("[data-go]").forEach((el) => {
       el.addEventListener("click", (e) => {
         e.preventDefault();
         const go = el.dataset.go;
         if (go === "setup") {
+          if (state.view === "quiz" && state.pack) {
+            if (!confirm("离开本场测试？当前进度不会保存。")) return;
+          }
+          clearAutoTimer();
           renderSetup();
           show("setup");
         } else if (go === "home") {
+          if (state.view === "quiz" && state.pack) {
+            if (!confirm("返回首页？当前进度不会保存。")) return;
+          }
+          clearAutoTimer();
           show("home");
           const hash = el.getAttribute("href") || "";
           if (hash.startsWith("#") && hash.length > 1) {
             setTimeout(() => {
               const t = document.querySelector(hash);
-              if (t) t.scrollIntoView({ behavior: "smooth" });
-            }, 60);
+              if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 80);
           }
         } else if (go === "features") {
-          show("home");
-          setTimeout(() => {
-            const t = document.getElementById("features");
-            if (t) t.scrollIntoView({ behavior: "smooth" });
-          }, 60);
+          scrollToId("features");
         } else if (go === "retry") {
+          clearAutoTimer();
           renderSetup();
           show("setup");
         } else if (go === "retry-same") {
-          startQuiz(); // 重新 buildPaper，题库刷新
+          startQuiz();
         }
       });
     });
+
+    // 顶栏锚点：能力 / 陪考官 / 怎么测
+    document.querySelectorAll('a[href^="#"]').forEach((a) => {
+      a.addEventListener("click", (e) => {
+        const id = (a.getAttribute("href") || "").slice(1);
+        if (!id) return;
+        const target = document.getElementById(id);
+        if (!target) return;
+        e.preventDefault();
+        // 若不在首页，先切回首页再滚
+        if (state.view !== "home") {
+          clearAutoTimer();
+          show("home");
+          setTimeout(() => {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 100);
+        } else {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
+    });
+
     $("#btn-next").addEventListener("click", nextQuestion);
     $("#btn-share").addEventListener("click", shareResult);
     $("#btn-abort").addEventListener("click", () => {
-      if (confirm("退出本场？进度不保存，但已抽过的题会记入「近期题库」以免下次撞车。")) show("home");
+      if (confirm("退出本场？进度不保存，但已抽过的题会记入「近期题库」以免下次撞车。")) {
+        clearAutoTimer();
+        if (JIAHAO.VOICE) JIAHAO.VOICE.stop();
+        show("home");
+      }
     });
+    const vbtn = $("#btn-voice-toggle");
+    if (vbtn && JIAHAO.VOICE) {
+      JIAHAO.VOICE.setMuted(JIAHAO.VOICE.isMuted());
+      vbtn.addEventListener("click", () => JIAHAO.VOICE.toggleMute());
+    }
   }
 
   function init() {
@@ -459,6 +782,7 @@
     renderSetup();
     bindSetup();
     bindGlobal();
+    initReveal();
     show("home");
   }
 

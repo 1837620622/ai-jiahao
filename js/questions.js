@@ -20291,11 +20291,41 @@ JIAHAO.pickFresh = function (pool, n, usedMap) {
 };
 
 /**
- * 组卷：必做 + 附加，本场绝对不重复；每次开局刷新抽取
+ * 打乱选项顺序，并同步重算 answer 下标。
+ * 题库里正确答案原先大量落在 B（1），若不打乱会出现「全选 B 全对」。
+ * 每次组卷都做，保证每场 A/B/C/D 分布不同。
+ */
+JIAHAO.shuffleQuestionOptions = function (q) {
+  const options = Array.isArray(q.options) ? q.options.slice() : [];
+  const n = options.length;
+  if (n < 2) return { ...q, options: options.slice() };
+
+  let answer = Number(q.answer);
+  if (!Number.isInteger(answer) || answer < 0 || answer >= n) answer = 0;
+
+  // Fisher–Yates：附带下标，洗完后定位原正确答案
+  const pack = options.map((text, i) => ({ text, i }));
+  for (let i = pack.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = pack[i];
+    pack[i] = pack[j];
+    pack[j] = tmp;
+  }
+  const newAnswer = pack.findIndex((p) => p.i === answer);
+  return {
+    ...q,
+    options: pack.map((p) => p.text),
+    answer: newAnswer < 0 ? 0 : newAnswer,
+    _origAnswer: answer,
+  };
+};
+
+/**
+ * 组卷：必做 + 附加，本场绝对不重复；每次开局刷新抽取；选项顺序随机
  */
 JIAHAO.buildPaper = function (tierId) {
   const tier = JIAHAO.TIERS.find((t) => t.id === tierId);
-  if (!tier) return { core: [], bonus: [], tier: null };
+  if (!tier) return { core: [], bonus: [], paper: [], tier: null };
 
   const used = JIAHAO.loadUsed();
   const poolTier = tier.pool || "junior";
@@ -20303,7 +20333,6 @@ JIAHAO.buildPaper = function (tierId) {
   const corePool = JIAHAO.QUESTIONS.filter(
     (q) => q.tier === poolTier && !q.bonus
   );
-  // 高手附加可混一点 senior 彩蛋
   let bonusPool = JIAHAO.QUESTIONS.filter(
     (q) => q.tier === poolTier && q.bonus
   );
@@ -20312,38 +20341,41 @@ JIAHAO.buildPaper = function (tierId) {
     bonusPool = bonusPool.concat(extra);
   }
   if (poolTier === "senior") {
-    // senior 附加不够时用 senior 非 bonus 尾部当附加素材不够的 fallback
     if (bonusPool.length < tier.bonusCount) {
       bonusPool = bonusPool.concat(
         JIAHAO.QUESTIONS.filter((q) => q.tier === "senior" && !q.bonus).slice(-30)
       );
     }
   }
-  // 初级附加不够时用 junior core 尾
   if (bonusPool.length < tier.bonusCount) {
     bonusPool = bonusPool.concat(
       corePool.slice(-20).map((q) => ({ ...q, bonus: true }))
     );
   }
 
-  const core = JIAHAO.pickFresh(corePool, tier.coreCount, used).map((q, i) => ({
-    ...q,
-    index: i + 1,
-    isBonus: false,
-    points: tier.corePoints,
-  }));
+  const core = JIAHAO.pickFresh(corePool, tier.coreCount, used).map((q, i) => {
+    const sq = JIAHAO.shuffleQuestionOptions(q);
+    return {
+      ...sq,
+      index: i + 1,
+      isBonus: false,
+      points: tier.corePoints,
+    };
+  });
 
   const coreIds = new Set(core.map((q) => q.id));
   const bonusSrc = bonusPool.filter((q) => !coreIds.has(q.id));
-  const bonus = JIAHAO.pickFresh(bonusSrc, tier.bonusCount, used).map((q, i) => ({
-    ...q,
-    index: core.length + i + 1,
-    isBonus: true,
-    points: tier.bonusPoints,
-  }));
+  const bonus = JIAHAO.pickFresh(bonusSrc, tier.bonusCount, used).map((q, i) => {
+    const sq = JIAHAO.shuffleQuestionOptions(q);
+    return {
+      ...sq,
+      index: core.length + i + 1,
+      isBonus: true,
+      points: tier.bonusPoints,
+    };
+  });
 
   const paper = core.concat(bonus);
-  // 开局即标记，保证下次尽量不撞
   JIAHAO.markUsed(paper.map((q) => q.id));
 
   return { core, bonus, paper, tier };

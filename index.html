@@ -3,187 +3,294 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta
-      name="description"
-      content="谁是 AI 大嘉豪？四段位 AI 能力测评，即时判分与解析，测完签发嘉豪人格报告。"
-    />
-    <meta name="theme-color" content="#faf9f7" />
+    <meta name="description" content="谁是 AI 大嘉豪？四段位 AI 能力测评，测完签发嘉豪人格报告。" />
+    <meta name="theme-color" content="#faf9f5" />
     <title>谁是 AI 大嘉豪？</title>
     <link rel="stylesheet" href="css/styles.css" />
+    <!-- favicon：暖橙圆角 + 白星（无黑底） -->
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23111111'/%3E%3Cpath d='M18 40V24l14 16 14-16v16' fill='none' stroke='%23c45c26' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23D97757'/%3E%3Cg fill='%23FFFFFF'%3E%3Cpath d='M32 10c1.1 6.5 2.2 11 2.9 13.2 2.2.7 6.7 1.8 13.2 2.9-6.5 1.1-11 2.2-13.2 2.9-.7 2.2-1.8 6.7-2.9 13.2-1.1-6.5-2.2-11-2.9-13.2-2.2-.7-6.7-1.8-13.2-2.9 6.5-1.1 11-2.2 13.2-2.9.7-2.2 1.8-6.7 2.9-13.2z'/%3E%3Cpath d='M32 15.5c.75 4.4 1.5 7.4 1.95 8.9 1.5.45 4.5 1.2 8.9 1.95-4.4.75-7.4 1.5-8.9 1.95-.45 1.5-1.2 4.5-1.95 8.9-.75-4.4-1.5-7.4-1.95-8.9-1.5-.45-4.5-1.2-8.9-1.95 4.4-.75 7.4-1.5 8.9-1.95.45-1.5 1.2-4.5 1.95-8.9z' opacity='.9' transform='rotate(45 32 32)'/%3E%3C/g%3E%3C/svg%3E"
     />
   </head>
   <body>
+    <!-- Logo：暖橙底 + 白星芒（白标可见，气质贴近 Claude） -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" class="svg-sprite" aria-hidden="true" focusable="false">
+      <symbol id="logo-star" viewBox="0 0 40 40">
+        <!-- 暖橙圆角底（白星可见；非黑底） -->
+        <rect width="40" height="40" rx="11" fill="#D97757" />
+        <!-- 白色星芒 -->
+        <g fill="#FFFFFF">
+          <path
+            d="M20 6.2
+               c.7 4.8 1.45 8.2 2.05 10
+               c1.8.6 5.2 1.35 10 2.05
+               c-4.8.7-8.2 1.45-10 2.05
+               c-.6 1.8-1.35 5.2-2.05 10
+               c-.7-4.8-1.45-8.2-2.05-10
+               c-1.8-.6-5.2-1.35-10-2.05
+               c4.8-.7 8.2-1.45 10-2.05
+               c.6-1.8 1.35-5.2 2.05-10z"
+          />
+          <path
+            opacity="0.92"
+            transform="rotate(45 20 20)"
+            d="M20 9
+               c.55 3.5 1.1 5.9 1.55 7.2
+               c1.3.45 3.7 1 7.2 1.55
+               c-3.5.55-5.9 1.1-7.2 1.55
+               c-.45 1.3-1 3.7-1.55 7.2
+               c-.55-3.5-1.1-5.9-1.55-7.2
+               c-1.3-.45-3.7-1-7.2-1.55
+               c3.5-.55 5.9-1.1 7.2-1.55
+               c.45-1.3 1-3.7 1.55-7.2z"
+          />
+        </g>
+      </symbol>
+    </svg>
+
     <header class="site-header">
       <div class="site-header-inner">
-        <a class="logo" href="#" data-go="home" aria-label="AI 嘉豪">
+        <a class="logo" href="#" data-go="home" aria-label="AI 嘉豪首页">
           <svg class="logo-mark" viewBox="0 0 40 40" aria-hidden="true">
-            <rect width="40" height="40" rx="12" fill="#111" />
-            <path
-              d="M11 27V15l9 12 9-12v12"
-              fill="none"
-              stroke="#e8a06a"
-              stroke-width="3.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
+            <use href="#logo-star" />
           </svg>
           <span class="logo-text">AI 嘉豪</span>
         </a>
-        <nav class="site-nav">
-          <a href="#features">能力</a>
-          <a href="#proctors">陪考官</a>
-          <a href="#how">怎么测</a>
+        <nav class="site-nav" aria-label="主导航">
+          <a href="#features" data-nav>能力</a>
+          <a href="#proctors" data-nav>陪考官</a>
+          <a href="#how" data-nav>怎么测</a>
           <button type="button" class="btn btn-primary" data-go="setup">开始测试</button>
         </nav>
       </div>
     </header>
 
-    <!-- HOME -->
     <main id="view-home" class="view">
+      <!-- Hero：非对称编辑式 -->
       <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">AI 能力测评</p>
-          <h1>
-            你觉得自己懂 AI？<br />
-            <span class="accent">选个段位来试试。</span>
-          </h1>
-          <p class="hero-desc">
-            先自评段位——新手上路、进阶玩家、高手过招、大神登顶。
-            必做卷满分 100，附加题加分，覆盖 LLM、提示词、RAG、Agent 等核心主题。
-            即时判分、逐项解析，测完一键生成嘉豪人格报告。
-          </p>
-          <div class="hero-actions">
-            <button type="button" class="btn btn-primary btn-lg" data-go="setup">
-              立即开始测试
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </button>
-            <a class="btn btn-ghost btn-lg" href="#how">了解测试流程</a>
+        <div class="hero-grid">
+          <div class="hero-main">
+            <p class="kicker reveal" data-d="0">
+              <span class="kicker-dot"></span>
+              AI 能力测评 · 本地判分
+            </p>
+            <h1 class="reveal" data-d="1">
+              你觉得自己<br />
+              懂 AI？
+            </h1>
+            <p class="lede reveal" data-d="2">
+              选个段位上场。必做满分 100，附加题加分。
+              覆盖 LLM、提示词、RAG、Agent——测完直接出嘉豪人格。
+            </p>
+            <div class="hero-cta reveal" data-d="3">
+              <button type="button" class="btn btn-primary btn-lg" data-go="setup">
+                立即开始
+              </button>
+              <a class="text-link" href="#how" data-nav>先看流程</a>
+            </div>
           </div>
-          <div class="hero-metrics">
-            <div><strong>4</strong><span>段位自选</span></div>
-            <div><strong>100</strong><span>必做满分</span></div>
-            <div><strong>1300+</strong><span>题库刷新</span></div>
-            <div><strong>10</strong><span>人格称号</span></div>
-          </div>
+
+          <aside class="hero-side reveal" data-d="2">
+            <div class="stat-stack">
+              <div class="stat-row">
+                <span class="stat-n">4</span>
+                <span class="stat-l">段位自选</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-n">100</span>
+                <span class="stat-l">必做满分</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-n">1300+</span>
+                <span class="stat-l">题库刷新</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-n">10</span>
+                <span class="stat-l">人格称号</span>
+              </div>
+            </div>
+            <p class="side-note" id="hero-bubble">四位陪考官轮值出镜，气氛组不改分。</p>
+          </aside>
         </div>
-        <div class="hero-visual">
-          <div class="speech" id="hero-bubble">AI 嘉豪测试，冲！</div>
-          <div class="cards-4" id="companion-grid"></div>
+
+        <div class="hero-rail reveal" data-d="4">
+          <div class="rail-head">
+            <span>本场陪考官</span>
+            <span class="rail-hint">答题时每题轮换</span>
+          </div>
+          <div class="rail-track" id="companion-grid"></div>
         </div>
       </section>
 
-      <section class="section" id="features">
-        <p class="section-label">能力覆盖</p>
-        <h2 class="section-title">不只是答题，是一次完整测评</h2>
-        <p class="section-sub">从题型设计到结果报告，每一步都为「测清楚你的 AI 理解力」服务。</p>
-        <div class="grid-3">
-          <article class="card">
-            <div class="card-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15l3-4 3 2 4-6"/></svg>
-            </div>
-            <h3>四段位难度</h3>
-            <p>从认知筑基到体系通关，题目难度随段位升高，避免一刀切。</p>
-          </article>
-          <article class="card">
-            <div class="card-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v18"/><path d="M5 8h14"/><path d="M7 12h10"/><path d="M9 16h6"/></svg>
-            </div>
-            <h3>必做 + 附加</h3>
-            <p>必做卷满分 100 决定过线；附加题为彩蛋加分，冲击更高人格。</p>
-          </article>
-          <article class="card">
-            <div class="card-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/></svg>
-            </div>
-            <h3>嘉豪人格报告</h3>
-            <p>大嘉豪、小嘉豪、硬核嘉豪、幻觉嘉豪……称号与专属形象一一对应。</p>
-          </article>
-        </div>
-      </section>
+      <!-- 能力：杂志式左右错落，不要三卡片克隆 -->
+      <section class="band" id="features">
+        <div class="band-inner">
+          <header class="band-head reveal">
+            <p class="kicker"><span class="kicker-dot"></span>能力覆盖</p>
+            <h2>测的是理解力，不是背名词。</h2>
+          </header>
 
-      <section class="section section-muted" id="proctors">
-        <p class="section-label">陪考官</p>
-        <h2 class="section-title">本场四位陪考官同学</h2>
-        <p class="section-sub">
-          不改分、不替你答题。答题时每题轮值出镜：气势、严谨、定力、表达。
-        </p>
-        <div class="grid-4" id="proctor-cards">
-          <article class="card card-proctor">
-            <div class="card-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v10"/><path d="M8 7h8"/><path d="M7 21h10"/><path d="M9 13c0 2.2 1.3 4 3 4s3-1.8 3-4"/></svg>
-            </div>
-            <h3>特朗普同学</h3>
-            <p>气势位。答对 Beautiful，答错 Sad。</p>
-          </article>
-          <article class="card card-proctor">
-            <div class="card-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 5h10v14H9z"/><path d="M5 7h4v12H5z"/><path d="M12 9h4M12 13h4"/></svg>
-            </div>
-            <h3>高市早苗同学</h3>
-            <p>严谨位。盯审题与概念，别被干扰项带节奏。</p>
-          </article>
-          <article class="card card-proctor">
-            <div class="card-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 1.5"/></svg>
-            </div>
-            <h3>莫迪同学</h3>
-            <p>定力位。想清楚再选，急是幻觉的好朋友。</p>
-          </article>
-          <article class="card card-proctor">
-            <div class="card-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
-            </div>
-            <h3>马克龙同学</h3>
-            <p>表达位。答案不仅要对，还要站得住。</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="section" id="how">
-        <p class="section-label">流程</p>
-        <h2 class="section-title">三步完成测评</h2>
-        <p class="section-sub">像正经考试一样清晰，像人格测试一样好玩。</p>
-        <div class="grid-3">
-          <article class="card step">
-            <span class="step-num">01</span>
-            <h3>自评段位</h3>
-            <p>新手 20 题、进阶 / 高手 / 大神 25 题必做，附加题可选彩蛋分。</p>
-          </article>
-          <article class="card step">
-            <span class="step-num">02</span>
-            <h3>作答与解析</h3>
-            <p>每题即时判分，给出解析；陪考官轮值点评。题库每次开考刷新，本场不重复。</p>
-          </article>
-          <article class="card step">
-            <span class="step-num">03</span>
-            <h3>人格报告</h3>
-            <p>根据必做正确率与附加分签发嘉豪人格，支持分享。</p>
-          </article>
-        </div>
-        <div class="cta-band">
-          <div>
-            <h3>准备好了吗？</h3>
-            <p>选个段位，用题说话。</p>
+          <div class="feature-list">
+            <article class="feature-row reveal">
+              <span class="feature-idx">01</span>
+              <div class="feature-body">
+                <h3>四段位难度</h3>
+                <p>从入门到大神，题池难度拉开。你先自评，系统再按得分签发段位人格。</p>
+              </div>
+            </article>
+            <article class="feature-row reveal">
+              <span class="feature-idx">02</span>
+              <div class="feature-body">
+                <h3>必做 + 附加</h3>
+                <p>必做卷满分 100，决定过线；附加题是彩蛋分，冲击更稀有的嘉豪称号。</p>
+              </div>
+            </article>
+            <article class="feature-row reveal">
+              <span class="feature-idx">03</span>
+              <div class="feature-body">
+                <h3>人格报告</h3>
+                <p>大嘉豪、小嘉豪、硬核嘉豪、幻觉嘉豪……称号与专属形象绑定，能分享。</p>
+              </div>
+            </article>
           </div>
-          <button type="button" class="btn btn-primary btn-lg" data-go="setup">开始测试</button>
+        </div>
+      </section>
+
+      <!-- 陪考官：横向编辑卡，不对称 -->
+      <section class="band band-tint" id="proctors">
+        <div class="band-inner">
+          <header class="band-head split reveal">
+            <div>
+              <p class="kicker"><span class="kicker-dot"></span>陪考官</p>
+              <h2>气氛组就位。<br />不改分，只出镜。</h2>
+            </div>
+            <p class="band-aside">
+              气势、严谨、定力、表达——四位同学轮值点评。不展示国籍标签。
+            </p>
+          </header>
+
+          <div class="proctor-board" id="proctor-cards">
+            <article class="proctor reveal" data-d="0">
+              <div class="proctor-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v10M8 7h8M7 21h10M9 13c0 2.2 1.3 4 3 4s3-1.8 3-4"/></svg>
+              </div>
+              <h3>特朗普同学</h3>
+              <p>气势位。答对 Beautiful，答错 Sad。</p>
+            </article>
+            <article class="proctor reveal" data-d="1">
+              <div class="proctor-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 5h10v14H9zM5 7h4v12H5zM12 9h4M12 13h4"/></svg>
+              </div>
+              <h3>高市早苗同学</h3>
+              <p>严谨位。盯审题与概念，别被干扰项带节奏。</p>
+            </article>
+            <article class="proctor reveal" data-d="2">
+              <div class="proctor-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 1.5"/></svg>
+              </div>
+              <h3>莫迪同学</h3>
+              <p>定力位。想清楚再选。</p>
+            </article>
+            <article class="proctor reveal" data-d="3">
+              <div class="proctor-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+              </div>
+              <h3>马克龙同学</h3>
+              <p>表达位。答案要对，也要站得住。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- 流程：时间线，不要又一套三卡片 -->
+      <section class="band" id="how">
+        <div class="band-inner">
+          <header class="band-head reveal">
+            <p class="kicker"><span class="kicker-dot"></span>怎么测</p>
+            <h2>三步，出结果。</h2>
+          </header>
+
+          <ol class="timeline">
+            <li class="timeline-item reveal">
+              <div class="timeline-mark">1</div>
+              <div>
+                <h3>自评段位</h3>
+                <p>新手 20 题，进阶 / 高手 / 大神 25 题必做，附加题吃彩蛋分。</p>
+              </div>
+            </li>
+            <li class="timeline-item reveal">
+              <div class="timeline-mark">2</div>
+              <div>
+                <h3>作答</h3>
+                <p>单击选中，双击确认；显示对错后自动下一题。题库每次刷新，本场不重复。</p>
+              </div>
+            </li>
+            <li class="timeline-item reveal">
+              <div class="timeline-mark">3</div>
+              <div>
+                <h3>人格报告</h3>
+                <p>按必做正确率与附加分签发嘉豪人格，可分享。</p>
+              </div>
+            </li>
+          </ol>
+
+          <div class="end-cta reveal">
+            <div>
+              <h3>准备好了？</h3>
+              <p>用题说话，不靠感觉。</p>
+            </div>
+            <button type="button" class="btn btn-primary btn-lg" data-go="setup">开始测试</button>
+          </div>
         </div>
       </section>
 
       <footer class="site-footer">
-        <div class="site-footer-inner">
-          <div class="logo footer-logo">
-            <svg class="logo-mark sm" viewBox="0 0 40 40" aria-hidden="true">
-              <rect width="40" height="40" rx="12" fill="#111" />
-              <path d="M11 27V15l9 12 9-12v12" fill="none" stroke="#e8a06a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            <span>AI 嘉豪</span>
+        <div class="site-footer-inner site-footer-rich">
+          <div class="footer-brand">
+            <a class="logo" href="#" data-go="home">
+              <svg class="logo-mark sm" viewBox="0 0 40 40" aria-hidden="true">
+                <use href="#logo-star" />
+              </svg>
+              <span class="logo-text">AI 嘉豪</span>
+            </a>
+            <p class="footer-tag">学习娱乐向 · 本地判分 · 开源可魔改</p>
           </div>
-          <p>结果仅供学习与娱乐 · 题库本地判分</p>
+
+          <div class="footer-cols">
+            <div class="footer-col">
+              <h4>开源</h4>
+              <a href="https://github.com/1837620622/ai-jiahao" target="_blank" rel="noopener noreferrer">
+                GitHub 仓库
+              </a>
+              <a href="https://github.com/1837620622/ai-jiahao" target="_blank" rel="noopener noreferrer">
+                github.com/1837620622/ai-jiahao
+              </a>
+              <a href="https://ai-jiahao-aa3.pages.dev/" target="_blank" rel="noopener noreferrer">
+                在线体验
+              </a>
+            </div>
+            <div class="footer-col">
+              <h4>开发者</h4>
+              <p>GitHub：<a href="https://github.com/1837620622" target="_blank" rel="noopener noreferrer">@1837620622</a></p>
+              <p>微信：1837620622（传康Kk）</p>
+              <p>邮箱：<a href="mailto:2040168455@qq.com">2040168455@qq.com</a></p>
+              <p>咸鱼 / B站：万能程序员</p>
+            </div>
+            <div class="footer-col">
+              <h4>商务合作</h4>
+              <p>企业定制题库 · 内训测评 · 品牌联名</p>
+              <p>私有化部署 · 活动页魔改</p>
+              <p>合作请备注「嘉豪商务」</p>
+              <a class="footer-biz" href="mailto:2040168455@qq.com?subject=%E5%98%89%E8%B1%AA%E5%95%86%E5%8A%A1%E5%90%88%E4%BD%9C">
+                发送合作邮件 →
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <span>MIT License</span>
+          <span>质疑嘉豪 · 理解嘉豪 · 成为嘉豪</span>
         </div>
       </footer>
     </main>
@@ -192,13 +299,12 @@
     <section id="view-setup" class="view hidden">
       <div class="app-page">
         <header class="app-bar">
-          <button type="button" class="text-btn" data-go="home">← 返回首页</button>
+          <button type="button" class="text-btn" data-go="home">← 返回</button>
           <div class="logo mini">
             <svg class="logo-mark sm" viewBox="0 0 40 40" aria-hidden="true">
-              <rect width="40" height="40" rx="12" fill="#111" />
-              <path d="M11 27V15l9 12 9-12v12" fill="none" stroke="#e8a06a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+              <use href="#logo-star" />
             </svg>
-            <span>选择段位</span>
+            <span class="logo-text">选择段位</span>
           </div>
           <span class="bar-spacer"></span>
         </header>
@@ -209,8 +315,8 @@
           </div>
 
           <div class="panel">
-            <h2>陪考官名单</h2>
-            <p class="panel-hint">气氛组，不改分 · 答题页左侧大图轮值</p>
+            <h2>陪考官</h2>
+            <p class="panel-hint">气氛组，不改分 · 答题页左侧轮值</p>
             <div class="coach-intro-list" id="coach-intro-list"></div>
           </div>
 
@@ -223,10 +329,10 @@
           <div class="panel">
             <h2>计分规则</h2>
             <ul class="rules">
-              <li><strong>必做卷</strong>：满分 100（段位内等分）</li>
-              <li><strong>附加卷</strong>：答对加分，不扣必做分</li>
-              <li><strong>过线</strong>：只看必做分是否达到段位线</li>
-              <li><strong>防重复</strong>：本场题目不重复，并尽量避开近期做过的题</li>
+              <li><strong>必做卷</strong>：满分 100</li>
+              <li><strong>附加卷</strong>：答对加分，不扣必做</li>
+              <li><strong>过线</strong>：只看必做是否达标</li>
+              <li><strong>防重复</strong>：本场不重复，并尽量避开近题</li>
             </ul>
           </div>
 
@@ -234,7 +340,7 @@
             <p class="setup-summary" id="setup-summary"></p>
             <div class="setup-actions">
               <button type="button" class="btn btn-ghost" data-go="home">返回</button>
-              <button type="button" class="btn btn-ghost" id="btn-clear-used">清空近题记录</button>
+              <button type="button" class="btn btn-ghost" id="btn-clear-used">清空近题</button>
               <button type="button" class="btn btn-primary" id="btn-start-quiz">开始测试</button>
             </div>
           </div>
@@ -255,27 +361,42 @@
               <span class="dot">·</span>
               <span id="quiz-progress-label">1 / 30</span>
             </div>
-            <div id="live-score" class="live-score">必做 0/100</div>
+            <div id="live-score" class="live-score" aria-live="polite">必做 0/100</div>
+            <button type="button" class="btn btn-ghost btn-sm btn-voice" id="btn-voice-toggle" aria-pressed="false" title="陪考官语音">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/></svg>
+              <span class="voice-lab">语音</span>
+            </button>
             <button type="button" class="btn btn-ghost btn-sm" id="btn-abort">退出</button>
           </div>
-          <div class="progress"><i id="progress-bar"></i></div>
+          <div
+            class="progress"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            aria-label="答题进度"
+            id="progress-wrap"
+          >
+            <i id="progress-bar"></i>
+          </div>
           <div id="quiz-phase" class="quiz-phase">必做题</div>
           <div id="bonus-banner" class="bonus-banner hidden"></div>
           <div class="quiz-card">
             <div class="react-stamp" id="react-stamp">嘉豪</div>
             <div class="q-topic" id="q-topic">LLM</div>
             <h2 class="q-text" id="q-text">题目加载中…</h2>
+            <p class="answer-hint" id="answer-hint">单击选中 · 双击确认并进入下一题</p>
             <div class="options" id="options"></div>
-            <div class="explain hidden" id="explain"></div>
+            <div class="explain hidden" id="explain" aria-live="polite"></div>
             <div class="quiz-foot">
               <div class="coach">
-                <img id="coach-avatar" src="assets/trump.jpg" alt="" />
+                <img id="coach-avatar" src="assets/trump.jpg" alt="当前轮值陪考官" />
                 <div class="coach-text">
                   <strong id="coach-name">本场轮值：特朗普同学</strong>
                   <span id="coach-quote">准备好了吗？</span>
                 </div>
               </div>
-              <button type="button" class="btn btn-primary" id="btn-next" disabled>下一题</button>
+              <button type="button" class="btn btn-primary" id="btn-next" disabled>确认并下一题</button>
             </div>
           </div>
         </div>
@@ -288,7 +409,7 @@
         <div class="result-card">
           <p class="result-kicker">测评报告</p>
           <div class="persona-img">
-            <img id="persona-img" src="assets/p_dajiahao.jpg" alt="" />
+            <img id="persona-img" src="assets/p_dajiahao.jpg" alt="人格形象" />
           </div>
           <p class="persona-visual-tip" id="persona-visual-tip">专属形象与称号绑定</p>
           <div class="rarity" id="persona-rarity">史诗</div>
@@ -316,7 +437,9 @@
     </section>
 
     <script src="js/questions.js"></script>
+    <script src="js/questions-extra.js"></script>
     <script src="js/personas.js"></script>
+    <script src="js/voice.js"></script>
     <script src="js/app.js"></script>
   </body>
 </html>
