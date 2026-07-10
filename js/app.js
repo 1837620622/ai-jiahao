@@ -130,31 +130,37 @@
     return line;
   }
 
-  /** 首页 .reveal 入场：先保证可见，再启用动画（防 Chrome 等 JS 时白屏） */
+  /** 首页 .reveal 入场：先标 is-in 再开 anim，避免闪白 */
   function initReveal() {
     const nodes = $$(".reveal");
     if (!nodes.length) return;
 
-    // 超时兜底：2.5s 内未进场的全部显示
     const forceIn = () => {
       nodes.forEach((el) => el.classList.add("is-in"));
     };
-    const failSafe = setTimeout(forceIn, 2500);
+    const markVisible = () => {
+      nodes.forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.top < window.innerHeight * 0.98 && r.bottom > 0) {
+          el.classList.add("is-in");
+        }
+      });
+    };
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       forceIn();
-      clearTimeout(failSafe);
       return;
     }
     if (!("IntersectionObserver" in window)) {
       forceIn();
-      clearTimeout(failSafe);
       return;
     }
 
-    // 内容已在文档中，再开动画类（避免加载期 opacity:0）
+    // 先把首屏标为已显示，再开动画类，杜绝「先隐后显」闪白
+    markVisible();
     document.documentElement.classList.add("anim");
 
+    const failSafe = setTimeout(forceIn, 2500);
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((en) => {
@@ -166,30 +172,16 @@
       },
       { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }
     );
-    nodes.forEach((el) => io.observe(el));
-    requestAnimationFrame(() => {
-      nodes.forEach((el) => {
-        const r = el.getBoundingClientRect();
-        if (r.top < window.innerHeight * 0.96 && r.bottom > 0) {
-          el.classList.add("is-in");
-          io.unobserve(el);
-        }
-      });
-      // 首屏处理完后取消兜底计时（仍保留给下方区块）
-      if ($$(".reveal.is-in").length >= Math.min(4, nodes.length)) {
-        // 保留 failSafe 给更下方的块
-      }
+    nodes.forEach((el) => {
+      if (!el.classList.contains("is-in")) io.observe(el);
     });
-    // 页面 load 后再扫一遍
     window.addEventListener(
       "load",
       () => {
-        nodes.forEach((el) => {
-          if (!el.classList.contains("is-in")) {
-            const r = el.getBoundingClientRect();
-            if (r.top < window.innerHeight * 1.2) el.classList.add("is-in");
-          }
-        });
+        markVisible();
+        clearTimeout(failSafe);
+        // 仍未进场的块继续观察；2.5s 后 forceIn 兜底
+        setTimeout(forceIn, 2000);
       },
       { once: true }
     );
@@ -845,8 +837,20 @@
     const vbtn = $("#btn-voice-toggle");
     if (vbtn && JIAHAO.VOICE) {
       JIAHAO.VOICE.setMuted(JIAHAO.VOICE.isMuted());
-      vbtn.addEventListener("click", () => JIAHAO.VOICE.toggleMute());
+      vbtn.addEventListener("click", () => {
+        const nowMuted = JIAHAO.VOICE.toggleMute();
+        // 取消静音时给一次反馈
+        if (!nowMuted) {
+          unlockVoice();
+        }
+      });
     }
+    // 任意首次点击也尝试解锁（覆盖「直接进页」场景）
+    document.addEventListener(
+      "pointerdown",
+      () => unlockVoice(),
+      { once: true, passive: true }
+    );
   }
 
   function init() {

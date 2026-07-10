@@ -18,6 +18,8 @@
   var muted = false;
   var playToken = 0;
   var unlocked = false;
+  /** 串行解锁，避免 unlock 与 play 抢同一 Audio 导致被 pause */
+  var unlockPromise = null;
 
   try {
     muted = localStorage.getItem("jiahao_voice_muted") === "1";
@@ -99,38 +101,60 @@
 
   /**
    * 在用户点击手势内解锁音频（静音极短播放）
-   * 开考 / 点选项 / 点喇叭时调用
+   * 单例 Promise：并发 unlock/play 只走一次，防止后到的 pause 掐掉正式 mp3
    */
   function unlock() {
     if (unlocked) return Promise.resolve(true);
+    if (unlockPromise) return unlockPromise;
+
     var a = ensureAudio();
-    // 1 帧近乎无声的 wav，用于解锁 autoplay
     var silent =
       "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=";
-    a.volume = 0.01;
-    try {
-      a.src = silent;
-    } catch (e) {}
-    var p = a.play();
-    if (p && typeof p.then === "function") {
-      return p
-        .then(function () {
+
+    unlockPromise = new Promise(function (resolve) {
+      // 若已有正式播放在进行，只标记解锁，不要改 src
+      if (a.src && a.src.indexOf("assets/audio") !== -1 && !a.paused) {
+        unlocked = true;
+        resolve(true);
+        return;
+      }
+      try {
+        a.volume = 0.01;
+        a.src = silent;
+      } catch (e) {}
+      var p = a.play();
+      if (p && typeof p.then === "function") {
+        p.then(function () {
           unlocked = true;
           try {
             a.pause();
             a.currentTime = 0;
           } catch (e) {}
-          a.volume = VOLUME;
-          return true;
-        })
-        .catch(function () {
-          a.volume = VOLUME;
-          return false;
+          try {
+            a.volume = VOLUME;
+          } catch (e) {}
+          resolve(true);
+        }).catch(function () {
+          try {
+            a.volume = VOLUME;
+          } catch (e) {}
+          // 即使失败也尝试后续 play（部分浏览器仍允许手势内二次 play）
+          unlocked = true;
+          resolve(true);
         });
-    }
-    unlocked = true;
-    a.volume = VOLUME;
-    return Promise.resolve(true);
+      } else {
+        unlocked = true;
+        try {
+          a.volume = VOLUME;
+        } catch (e) {}
+        resolve(true);
+      }
+    }).finally(function () {
+      // 保留 unlocked；清空 promise 以便失败后可再试
+      if (!unlocked) unlockPromise = null;
+    });
+
+    return unlockPromise;
   }
 
   J.VOICE = {

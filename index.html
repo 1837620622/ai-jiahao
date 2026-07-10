@@ -6,9 +6,9 @@
     <meta name="description" content="谁是 AI 大嘉豪？四段位 AI 能力测评，测完签发嘉豪人格报告。" />
     <meta name="theme-color" content="#faf9f5" />
     <title>谁是 AI 大嘉豪？</title>
-    <link rel="stylesheet" href="css/styles.css?v=20260710d" />
-    <!-- 关键 CSS 预加载，减轻 Chrome 首屏白屏感 -->
-    <link rel="preload" href="js/app.js" as="script" />
+    <link rel="stylesheet" href="css/styles.css?v=20260710e" />
+    <!-- 全量 cache bust，避免 Chrome 强缓存旧 app/voice 逻辑 -->
+    <link rel="preload" href="js/app.js?v=20260710e" as="script" />
     <!-- favicon：暖橙圆角 + 白星（无黑底） -->
     <link
       rel="icon"
@@ -454,11 +454,11 @@
       </div>
     </section>
 
-    <!-- defer：不阻塞 HTML 解析，Chrome 先画出页面再执行题库（~500KB） -->
-    <script defer src="js/questions.js"></script>
-    <script defer src="js/questions-extra.js"></script>
-    <script defer src="js/personas.js"></script>
-    <script defer src="js/voice.js"></script>
-    <script defer src="js/app.js"></script>
+    <!-- defer + 版本戳：不阻塞解析，且发版后不吃旧缓存 -->
+    <script defer src="js/questions.js?v=20260710e"></script>
+    <script defer src="js/questions-extra.js?v=20260710e"></script>
+    <script defer src="js/personas.js?v=20260710e"></script>
+    <script defer src="js/voice.js?v=20260710e"></script>
+    <script defer src="js/app.js?v=20260710e"></script>
   </body>
 </html>
