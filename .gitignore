@@ -5,3 +5,6 @@ dist/
 *.log
 .env
 .env.*
+assets/takaichi_ref.jpg
+assets/ref.png
+assets/ref_cards.png

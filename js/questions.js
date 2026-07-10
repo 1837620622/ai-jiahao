@@ -12,19 +12,66 @@ JIAHAO.BRAND = {
   name: "AI 嘉豪",
   product: "谁是 AI 大嘉豪？",
   en: "WHO IS THE AI JIAHAO?",
-  tagline: "谁是 AI 大嘉豪？",
-  sub: "质疑嘉豪，理解嘉豪，成为嘉豪——先过这关。",
-  bubble: "隔壁班的陪考官已就位！",
-  intro:
-    "大家好！欢迎来到「谁是 AI 大嘉豪？」——不是骂你装，是测你懂不懂。嘉豪梗里有用力过猛、有中二显眼包，也有「真诚表达自我」的那一口。本考场请四位陪考官同学轮值：特朗普、高市早苗、莫迪、马克龙。每题换一位出镜，题库每次刷新不重复。测完签发你的嘉豪人格。",
+  tagline: "你觉得自己懂 AI？",
+  sub: "选个段位来试试。",
+  bubble: "AI 嘉豪测试，冲！",
+  intro: "",
 };
 
+/** 陪考官：只展示角色定位，不展示国籍/旗帜 */
 JIAHAO.COMPANIONS = [
-  { id: "trump", name: "特朗普", title: "特朗普同学", role: "气势位 · 气氛组", duty: "答对 Beautiful，答错 Sad。发布会级陪考。", img: "assets/trump.jpg", emoji: "🇺🇸", vibe: "Huge 模式" },
-  { id: "takaichi", name: "高市早苗", title: "高市早苗同学", role: "严谨位 · 纠察队", duty: "盯审题与概念，干扰项克星。", img: "assets/takaichi.jpg", emoji: "🇯🇵", vibe: "冷脸审题" },
-  { id: "modi", name: "莫迪", title: "莫迪同学", role: "定力位 · 心态位", duty: "深呼吸，想清楚再点。", img: "assets/modi.jpg", emoji: "🇮🇳", vibe: "稳住别浪" },
-  { id: "macron", name: "马克龙", title: "马克龙同学", role: "表达位 · 质检员", duty: "逻辑要干净，措辞要站得住。", img: "assets/macron.jpg", emoji: "🇫🇷", vibe: "精确至上" },
+  {
+    id: "trump",
+    name: "特朗普",
+    title: "特朗普同学",
+    role: "气势位 · 气氛组",
+    duty: "答对 Beautiful，答错 Sad。发布会级陪考。",
+    img: "assets/trump.jpg",
+    vibe: "Huge 模式",
+    icon: "megaphone",
+  },
+  {
+    id: "takaichi",
+    name: "高市早苗",
+    title: "高市早苗同学",
+    role: "严谨位 · 纠察队",
+    duty: "盯审题与概念，干扰项克星。",
+    img: "assets/takaichi.jpg",
+    vibe: "冷脸审题",
+    icon: "clipboard",
+  },
+  {
+    id: "modi",
+    name: "莫迪",
+    title: "莫迪同学",
+    role: "定力位 · 心态位",
+    duty: "深呼吸，想清楚再选。",
+    img: "assets/modi.jpg",
+    vibe: "稳住别浪",
+    icon: "focus",
+  },
+  {
+    id: "macron",
+    name: "马克龙",
+    title: "马克龙同学",
+    role: "表达位 · 质检员",
+    duty: "逻辑要干净，措辞要站得住。",
+    img: "assets/macron.jpg",
+    vibe: "精确至上",
+    icon: "precision",
+  },
 ];
+
+JIAHAO.ICONS = {
+  megaphone:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v10"/><path d="M8 7h8"/><path d="M7 21h10"/><path d="M9 13c0 2.2 1.3 4 3 4s3-1.8 3-4"/><path d="M5 9l-2 1 2 1"/><path d="M19 9l2 1-2 1"/></svg>',
+  clipboard:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 5h10v14H9z"/><path d="M5 7h4v12H5z"/><path d="M12 9h4"/><path d="M12 13h4"/><path d="M12 17h3"/></svg>',
+  focus:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 1.5"/></svg>',
+  precision:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><path d="M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>',
+};
 
 /**
  * 四段位（自评段位）计分规则

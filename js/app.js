@@ -181,14 +181,18 @@
     $("#quiz-tier-label").textContent = `${t.name} · ${t.title}`;
     $("#progress-bar").style.width = `${((state.cursor) / total) * 100}%`;
 
-    // 大图陪考官舞台
+    // 大图陪考官舞台（SVG 角色标，无国旗/emoji）
     const stage = $("#coach-stage");
     if (stage) {
+      const iconSvg =
+        (JIAHAO.ICONS && JIAHAO.ICONS[c.icon]) ||
+        (JIAHAO.ICONS && JIAHAO.ICONS.precision) ||
+        "";
       stage.innerHTML = `
         <div class="coach-stage-card anim-pop">
           <img src="${c.img}" alt="${c.title}" />
           <div class="coach-stage-meta">
-            <span class="vibe">${c.emoji || ""} ${c.vibe || "陪考中"}</span>
+            <span class="vibe"><span class="vibe-ico">${iconSvg}</span>${c.vibe || "陪考中"}</span>
             <strong>本关陪考官</strong>
             <b>${c.title}</b>
             <p>${c.duty || c.role}</p>
@@ -216,7 +220,7 @@
     $("#explain").innerHTML = "";
     $("#btn-next").disabled = true;
     $("#btn-next").textContent =
-      idx === total ? "结算嘉豪人格 🎉" : q.isBonus ? "下一道附加 →" : "下一题 →";
+      idx === total ? "结算嘉豪人格" : q.isBonus ? "下一道附加 →" : "下一题 →";
 
     // 底部小条同步
     $("#coach-avatar").src = c.img;
@@ -420,13 +424,21 @@
         if (go === "setup") {
           renderSetup();
           show("setup");
-        } else if (go === "home") show("home");
-        else if (go === "features") {
+        } else if (go === "home") {
+          show("home");
+          const hash = el.getAttribute("href") || "";
+          if (hash.startsWith("#") && hash.length > 1) {
+            setTimeout(() => {
+              const t = document.querySelector(hash);
+              if (t) t.scrollIntoView({ behavior: "smooth" });
+            }, 60);
+          }
+        } else if (go === "features") {
           show("home");
           setTimeout(() => {
             const t = document.getElementById("features");
             if (t) t.scrollIntoView({ behavior: "smooth" });
-          }, 50);
+          }, 60);
         } else if (go === "retry") {
           renderSetup();
           show("setup");
