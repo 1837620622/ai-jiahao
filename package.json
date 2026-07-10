@@ -1,0 +1,10 @@
+{
+  "name": "ai-jiahao-test",
+  "version": "1.0.0",
+  "private": true,
+  "description": "谁是 AI 大嘉豪？硬核 AI 能力测评与人格签发",
+  "scripts": {
+    "dev": "python3 -m http.server 8787",
+    "deploy": "npx wrangler pages deploy . --project-name=ai-jiahao-test --commit-dirty=true"
+  }
+}
